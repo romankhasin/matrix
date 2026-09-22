@@ -209,37 +209,37 @@
         <button data-preset="balanced">Баланс</button>
         <button data-preset="cpa">Упор на CPA</button>
         <button data-preset="cpm">Упор на CPM</button>
-        <button disabled style="opacity:.4; cursor:default;" title="Появится вместе с данными Метрики">Упор на постклик</button>
+        <button data-preset="postclick">Упор на постклик</button>
       </div>
 
       <div class="weight-row">
         <div class="weight-label">
           <span class="name">Стоимость конверсии (CPA)</span>
-          <span class="val mono" id="val-cpa">60%</span>
+          <span class="val mono" id="val-cpa">45%</span>
         </div>
-        <input type="range" id="w-cpa" min="0" max="100" value="60">
+        <input type="range" id="w-cpa" min="0" max="100" value="45">
       </div>
 
       <div class="weight-row">
         <div class="weight-label">
-          <span class="name">Постклик-качество <span style="color:var(--text-faint); font-weight:400;">— нет данных Метрики</span></span>
-          <span class="val mono" id="val-postclick">0%</span>
+          <span class="name">Постклик-качество</span>
+          <span class="val mono" id="val-postclick">30%</span>
         </div>
-        <input type="range" id="w-postclick" min="0" max="100" value="0" disabled style="opacity:.4">
+        <input type="range" id="w-postclick" min="0" max="100" value="30">
         <div class="subweights">
           <div class="weight-row">
             <div class="weight-label">
               <span class="name">Отказы</span>
               <span class="val mono" id="val-bounce">50%</span>
             </div>
-            <input type="range" id="w-bounce" min="0" max="100" value="50" disabled style="opacity:.4">
+            <input type="range" id="w-bounce" min="0" max="100" value="50">
           </div>
           <div class="weight-row">
             <div class="weight-label">
               <span class="name">Время на сайте</span>
               <span class="val mono" id="val-time">50%</span>
             </div>
-            <input type="range" id="w-time" min="0" max="100" value="50" disabled style="opacity:.4">
+            <input type="range" id="w-time" min="0" max="100" value="50">
           </div>
         </div>
       </div>
@@ -247,9 +247,9 @@
       <div class="weight-row">
         <div class="weight-label">
           <span class="name">Стоимость CPM</span>
-          <span class="val mono" id="val-cpm">40%</span>
+          <span class="val mono" id="val-cpm">25%</span>
         </div>
-        <input type="range" id="w-cpm" min="0" max="100" value="40">
+        <input type="range" id="w-cpm" min="0" max="100" value="25">
       </div>
 
       <div class="weights-sum" id="weights-sum">
@@ -259,7 +259,7 @@
 
       <div class="conv-note">
         <b>Целевая конверсия для CPA:</b> сделки (модель атрибуции «Участие») из BI клиента, август 2026.<br>
-        <b>Постклик:</b> данные Яндекс.Метрики пока не подключены (ждём доступ к API) — вес отключён, слайдер задел на будущее.
+        <b>Постклик:</b> визиты, отказы и время на сайте — из Яндекс.Метрики (счётчики ЖК 53197618 + Коммерция 100470605), по UTM Source, август 2026. Значения по двум счётчикам сведены визит-взвешенным средним.
       </div>
     </div>
 
@@ -278,7 +278,7 @@
       <div class="legend">
         <span><span class="dot" style="background:var(--good)"></span>лучше медианы по CPM среди ранжируемых</span>
         <span><span class="dot" style="background:var(--bad)"></span>хуже медианы по CPM среди ранжируемых</span>
-        <span>Score = взвешенная сумма нормализованных CPA и CPM (0–100). Постклик подключится вместе с Метрикой.</span>
+        <span>Score = взвешенная сумма нормализованных CPA, постклика (отказы + время на сайте) и CPM (0–100).</span>
       </div>
     </div>
   </main>
@@ -286,8 +286,8 @@
 
 <script>
 // ---- реальные данные: data/merged_august2026.csv (расход из "Ежемесячная статистика MI // Level",
-// сделки из BI-выгрузки клиента за август 2026, модель атрибуции "Участие") ----
-// Постклик (отказы / время на сайте) пока не подключён — ждём доступ к API Метрики.
+// сделки из BI-выгрузки клиента за август 2026, модель атрибуции "Участие",
+// постклик — Яндекс.Метрика, счётчики 53197618 + 100470605, август 2026) ----
 const DISPLAY_NAMES = {
   yandex: "Яндекс (медийка)", mts: "МТС", tbank: "Т-Банк", alfabank: "Альфа-Банк",
   ozon: "Ozon", adheads: "AdHeads", cre: "CRE",
@@ -308,13 +308,13 @@ const name = p => DISPLAY_NAMES[p] || p;
 
 // площадки, где есть И расход, И BI-сделки — только их можно честно ранжировать по CPA
 const RANKED = [
-  { platform: "yandex", cost: 10619809.51, impr: 67371186, clicks: 172989, conversions: 3 },
-  { platform: "mts", cost: 6204822.45, impr: 31638922, clicks: 263336, conversions: 1 },
-  { platform: "tbank", cost: 4528591.25, impr: 3892401, clicks: 43565, conversions: 2 },
-  { platform: "alfabank", cost: 2398983.58, impr: 2104550, clicks: 6460, conversions: 1 },
-  { platform: "ozon", cost: 2348362.49, impr: 7948185, clicks: 5414, conversions: 3 },
-  { platform: "adheads", cost: 612618.58, impr: 1806956, clicks: 10841, conversions: 6 },
-  { platform: "cre", cost: 556158.96, impr: 24386, clicks: 11, conversions: 3 },
+  { platform: "yandex", cost: 10619809.51, impr: 67371186, clicks: 172989, conversions: 3, bounce: 32.7, timeOnSite: 165.1 },
+  { platform: "mts", cost: 6204822.45, impr: 31638922, clicks: 263336, conversions: 1, bounce: 30.54, timeOnSite: 97.6 },
+  { platform: "tbank", cost: 4528591.25, impr: 3892401, clicks: 43565, conversions: 2, bounce: 50.92, timeOnSite: 102.0 },
+  { platform: "alfabank", cost: 2398983.58, impr: 2104550, clicks: 6460, conversions: 1, bounce: 48.31, timeOnSite: 81.3 },
+  { platform: "ozon", cost: 2348362.49, impr: 7948185, clicks: 5414, conversions: 3, bounce: 43.16, timeOnSite: 129.0 },
+  { platform: "adheads", cost: 612618.58, impr: 1806956, clicks: 10841, conversions: 6, bounce: 33.63, timeOnSite: 69.1 },
+  { platform: "cre", cost: 556158.96, impr: 24386, clicks: 11, conversions: 3, bounce: 18.18, timeOnSite: 246.0 },
 ];
 
 // есть расход в этом файле, но 0 сделок в BI за август — риск слитого бюджета либо
@@ -355,7 +355,6 @@ function derive(rows){
     ...r,
     cpm: r.cost / r.impr * 1000,
     cpa: r.conversions > 0 ? r.cost / r.conversions : Infinity,
-    bounce: null, timeOnSite: null,
   }));
 }
 
@@ -381,16 +380,22 @@ function computeScores(){
   const data = derive(PLATFORMS);
 
   const wCpa = +document.getElementById('w-cpa').value;
+  const wPostclick = +document.getElementById('w-postclick').value;
   const wCpm = +document.getElementById('w-cpm').value;
-  // постклик временно исключён из формулы — нет данных Метрики
-  const total = (wCpa + wCpm) || 1;
+  const wBounce = +document.getElementById('w-bounce').value;
+  const wTime = +document.getElementById('w-time').value;
+  const total = (wCpa + wPostclick + wCpm) || 1;
+  const postclickTotal = (wBounce + wTime) || 1;
 
   const cpaNorm = normalize(data, 'cpa', true);
   const cpmNorm = normalize(data, 'cpm', true);
+  const bounceNorm = normalize(data, 'bounce', true); // ниже отказы — лучше
+  const timeNorm = normalize(data, 'timeOnSite', false); // больше время на сайте — лучше
   const cpmMed = median(data.map(r=>r.cpm));
 
   const scored = data.map((r, i) => {
-    const score = (cpaNorm[i] * wCpa + cpmNorm[i] * wCpm) / total * 100;
+    const postclickScore = (bounceNorm[i] * wBounce + timeNorm[i] * wTime) / postclickTotal;
+    const score = (cpaNorm[i] * wCpa + postclickScore * wPostclick + cpmNorm[i] * wCpm) / total * 100;
     return { ...r, score, cpmGood: r.cpm <= cpmMed };
   });
 
@@ -435,11 +440,15 @@ function renderSideLists(){
 
 function render(){
   document.getElementById('val-cpa').textContent = document.getElementById('w-cpa').value + '%';
+  document.getElementById('val-postclick').textContent = document.getElementById('w-postclick').value + '%';
   document.getElementById('val-cpm').textContent = document.getElementById('w-cpm').value + '%';
+  document.getElementById('val-bounce').textContent = document.getElementById('w-bounce').value + '%';
+  document.getElementById('val-time').textContent = document.getElementById('w-time').value + '%';
 
   const wCpa = +document.getElementById('w-cpa').value;
+  const wPostclick = +document.getElementById('w-postclick').value;
   const wCpm = +document.getElementById('w-cpm').value;
-  const total = wCpa + wCpm;
+  const total = wCpa + wPostclick + wCpm;
   const totalEl = document.getElementById('weights-total');
   totalEl.textContent = total + '%';
   document.getElementById('weights-sum').classList.toggle('balanced', total === 100);
@@ -463,6 +472,8 @@ function render(){
           <span class="m"><span class="lbl">CPM</span><span class="v ${r.cpmGood ? 'flag-good' : 'flag-bad'}">${fmt(r.cpm)} ₽</span></span>
           <span class="m"><span class="lbl">Сделки BI</span><span class="v">${r.conversions}</span></span>
           <span class="m"><span class="lbl">Расход</span><span class="v">${fmt(r.cost)} ₽</span></span>
+          <span class="m"><span class="lbl">Отказы</span><span class="v">${fmt(r.bounce,1)}%</span></span>
+          <span class="m"><span class="lbl">Время на сайте</span><span class="v">${Math.floor(r.timeOnSite/60)} м ${Math.round(r.timeOnSite%60)} с</span></span>
         </div>
       </div>
       <div class="score-col">
@@ -476,15 +487,17 @@ function render(){
 }
 
 const PRESETS = {
-  balanced: { cpa:60, cpm:40 },
-  cpa:      { cpa:85, cpm:15 },
-  cpm:      { cpa:30, cpm:70 },
+  balanced:  { cpa:45, postclick:30, cpm:25 },
+  cpa:       { cpa:75, postclick:10, cpm:15 },
+  cpm:       { cpa:20, postclick:10, cpm:70 },
+  postclick: { cpa:20, postclick:65, cpm:15 },
 };
 
 function applyPreset(presetName){
   const p = PRESETS[presetName];
-  if (!p) return; // "постклик"-пресет временно недоступен без данных Метрики
+  if (!p) return;
   document.getElementById('w-cpa').value = p.cpa;
+  document.getElementById('w-postclick').value = p.postclick;
   document.getElementById('w-cpm').value = p.cpm;
   render();
 }
