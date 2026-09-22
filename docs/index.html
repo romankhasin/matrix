@@ -1,0 +1,498 @@
+<title>Приоритет площадок</title>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root{
+    --bg:#11151c;
+    --surface:#181d27;
+    --surface-2:#1f2530;
+    --line:#2a313f;
+    --text:#e7ebf1;
+    --text-dim:#8a94a6;
+    --text-faint:#5b6577;
+    --accent:#e8a33d;
+    --accent-dim:#4a3a1f;
+    --teal:#4fd1c5;
+    --teal-dim:#1c3a37;
+    --good:#6fcf97;
+    --bad:#eb6b6b;
+    --font-display:'Fraunces', Georgia, serif;
+    --font-body:'IBM Plex Sans', -apple-system, sans-serif;
+    --font-mono:'IBM Plex Mono', 'SF Mono', monospace;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f5f3ee;
+      --surface:#ffffff;
+      --surface-2:#fbfaf7;
+      --line:#e2ddd2;
+      --text:#20242c;
+      --text-dim:#5f6672;
+      --text-faint:#8b93a0;
+      --accent:#b8791f;
+      --accent-dim:#f3e2c4;
+      --teal:#0f8c80;
+      --teal-dim:#dff2ef;
+      --good:#2f9e5c;
+      --bad:#c94848;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#f5f3ee; --surface:#ffffff; --surface-2:#fbfaf7; --line:#e2ddd2;
+    --text:#20242c; --text-dim:#5f6672; --text-faint:#8b93a0;
+    --accent:#b8791f; --accent-dim:#f3e2c4; --teal:#0f8c80; --teal-dim:#dff2ef;
+    --good:#2f9e5c; --bad:#c94848;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    padding:28px 20px 60px;
+    max-width:1180px;
+    margin:0 auto;
+  }
+  h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0;}
+  .mono{font-family:var(--font-mono); font-variant-numeric:tabular-nums;}
+
+  header{
+    display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end;
+    gap:16px; margin-bottom:28px; padding-bottom:20px; border-bottom:1px solid var(--line);
+  }
+  header .eyebrow{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--accent); margin-bottom:6px; display:block;
+  }
+  header h1{font-size:clamp(24px,3.4vw,32px); letter-spacing:-.01em;}
+  header p{color:var(--text-dim); font-size:14px; margin:6px 0 0; max-width:44ch;}
+  .period{
+    font-family:var(--font-mono); font-size:12px; color:var(--text-dim);
+    background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
+    padding:8px 12px; white-space:nowrap;
+  }
+
+  .layout{display:grid; grid-template-columns: 300px 1fr; gap:20px;}
+  @media (max-width:820px){ .layout{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:20px;
+  }
+  .panel + .panel{margin-top:16px;}
+  .panel h2{font-size:15px; margin-bottom:4px;}
+  .panel .sub{font-size:12px; color:var(--text-faint); margin-bottom:16px;}
+
+  .weight-row{margin-bottom:18px;}
+  .weight-row:last-child{margin-bottom:0;}
+  .weight-label{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-size:13px; margin-bottom:6px;
+  }
+  .weight-label .name{font-weight:500;}
+  .weight-label .val{font-family:var(--font-mono); color:var(--accent); font-size:13px;}
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:4px;
+    background:var(--line); border-radius:2px; outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background:var(--accent); cursor:pointer; border:2px solid var(--surface);
+    box-shadow:0 0 0 1px var(--line);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:14px; height:14px; border-radius:50%; background:var(--accent);
+    cursor:pointer; border:2px solid var(--surface);
+  }
+  .subweights{
+    margin-top:10px; padding:12px 14px; background:var(--surface-2);
+    border:1px solid var(--line); border-radius:10px;
+  }
+  .subweights .weight-row{margin-bottom:12px;}
+  .subweights .weight-row:last-child{margin-bottom:0;}
+  .subweights .weight-label .name{font-size:12px; color:var(--text-dim);}
+
+  .weights-sum{
+    margin-top:16px; padding-top:14px; border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; font-size:12px; color:var(--text-faint);
+  }
+  .weights-sum .val{font-family:var(--font-mono); color:var(--text-dim);}
+  .weights-sum.balanced .val{color:var(--good);}
+
+  .presets{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
+  .presets button{
+    font-family:var(--font-body); font-size:12px; padding:6px 11px; border-radius:100px;
+    border:1px solid var(--line); background:var(--surface-2); color:var(--text-dim);
+    cursor:pointer;
+  }
+  .presets button:hover{border-color:var(--accent); color:var(--text);}
+
+  .conv-note{
+    font-size:12px; color:var(--text-faint); line-height:1.5; margin-top:14px;
+    padding-top:14px; border-top:1px solid var(--line);
+  }
+  .conv-note b{color:var(--text-dim); font-weight:500;}
+
+  /* ranked list */
+  .rank-item{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:16px 18px; margin-bottom:10px;
+    display:grid; grid-template-columns: 34px 1fr auto; gap:16px; align-items:center;
+  }
+  .rank-item.top{border-color:var(--accent);}
+  .rank-num{
+    font-family:var(--font-mono); font-size:18px; color:var(--text-faint); text-align:center;
+  }
+  .rank-item.top .rank-num{color:var(--accent);}
+  .rank-main{min-width:0;}
+  .rank-title-row{display:flex; align-items:baseline; gap:10px; margin-bottom:8px; flex-wrap:wrap;}
+  .platform-name{font-size:16px; font-weight:600;}
+  .campaign-name{font-size:12px; color:var(--text-faint);}
+  .score-bar-track{
+    height:6px; background:var(--surface-2); border-radius:3px; overflow:hidden; margin-bottom:10px;
+  }
+  .score-bar-fill{height:100%; background:linear-gradient(90deg, var(--teal), var(--accent)); border-radius:3px;}
+  .metric-row{
+    display:flex; gap:18px; flex-wrap:wrap; font-size:12px; color:var(--text-dim);
+  }
+  .metric-row .m{display:flex; gap:5px; align-items:baseline;}
+  .metric-row .m .v{font-family:var(--font-mono); color:var(--text); font-size:12.5px;}
+  .metric-row .m .lbl{color:var(--text-faint);}
+  .flag-good{color:var(--good);}
+  .flag-bad{color:var(--bad);}
+  .score-col{text-align:right;}
+  .score-value{font-family:var(--font-mono); font-size:26px; font-weight:600; color:var(--accent); line-height:1;}
+  .score-unit{font-size:11px; color:var(--text-faint); margin-top:2px;}
+
+  @media (max-width:560px){
+    .rank-item{grid-template-columns: 26px 1fr; grid-template-rows:auto auto;}
+    .score-col{grid-column:1/-1; text-align:left; margin-top:6px; display:flex; align-items:baseline; gap:8px;}
+  }
+
+  .legend{
+    display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:var(--text-faint);
+    margin-top:20px; padding-top:16px; border-top:1px solid var(--line);
+  }
+  .legend span{display:flex; align-items:center; gap:6px;}
+  .legend .dot{width:8px; height:8px; border-radius:50%;}
+
+  .side-list{margin-bottom:16px;}
+  .side-list:last-child{margin-bottom:0;}
+  .side-list h3{font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-faint); margin-bottom:8px; font-family:var(--font-body); font-weight:600;}
+  .side-row{
+    display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+    font-size:12.5px; padding:6px 0; border-bottom:1px solid var(--line);
+  }
+  .side-row:last-child{border-bottom:none;}
+  .side-row .name{color:var(--text);}
+  .side-row .val{font-family:var(--font-mono); color:var(--text-dim); white-space:nowrap;}
+  .side-row .val.warn{color:var(--bad);}
+</style>
+
+<header>
+  <div>
+    <span class="eyebrow">Медиаплан · ранкер площадок</span>
+    <h1>Приоритет размещения на новый месяц</h1>
+    <p>Скоринг площадок по стоимости конверсии, качеству постклика и CPM. Двигайте веса — рейтинг пересчитывается сразу.</p>
+  </div>
+  <div class="period mono">реальные данные · авг 2026</div>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="panel">
+      <h2>Веса параметров</h2>
+      <div class="sub">Сумма весов приводится к 100% автоматически</div>
+
+      <div class="presets">
+        <button data-preset="balanced">Баланс</button>
+        <button data-preset="cpa">Упор на CPA</button>
+        <button data-preset="cpm">Упор на CPM</button>
+        <button disabled style="opacity:.4; cursor:default;" title="Появится вместе с данными Метрики">Упор на постклик</button>
+      </div>
+
+      <div class="weight-row">
+        <div class="weight-label">
+          <span class="name">Стоимость конверсии (CPA)</span>
+          <span class="val mono" id="val-cpa">60%</span>
+        </div>
+        <input type="range" id="w-cpa" min="0" max="100" value="60">
+      </div>
+
+      <div class="weight-row">
+        <div class="weight-label">
+          <span class="name">Постклик-качество <span style="color:var(--text-faint); font-weight:400;">— нет данных Метрики</span></span>
+          <span class="val mono" id="val-postclick">0%</span>
+        </div>
+        <input type="range" id="w-postclick" min="0" max="100" value="0" disabled style="opacity:.4">
+        <div class="subweights">
+          <div class="weight-row">
+            <div class="weight-label">
+              <span class="name">Отказы</span>
+              <span class="val mono" id="val-bounce">50%</span>
+            </div>
+            <input type="range" id="w-bounce" min="0" max="100" value="50" disabled style="opacity:.4">
+          </div>
+          <div class="weight-row">
+            <div class="weight-label">
+              <span class="name">Время на сайте</span>
+              <span class="val mono" id="val-time">50%</span>
+            </div>
+            <input type="range" id="w-time" min="0" max="100" value="50" disabled style="opacity:.4">
+          </div>
+        </div>
+      </div>
+
+      <div class="weight-row">
+        <div class="weight-label">
+          <span class="name">Стоимость CPM</span>
+          <span class="val mono" id="val-cpm">40%</span>
+        </div>
+        <input type="range" id="w-cpm" min="0" max="100" value="40">
+      </div>
+
+      <div class="weights-sum" id="weights-sum">
+        <span>CPA + постклик + CPM</span>
+        <span class="val mono" id="weights-total">100%</span>
+      </div>
+
+      <div class="conv-note">
+        <b>Целевая конверсия для CPA:</b> сделки (модель атрибуции «Участие») из BI клиента, август 2026.<br>
+        <b>Постклик:</b> данные Яндекс.Метрики пока не подключены (ждём доступ к API) — вес отключён, слайдер задел на будущее.
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Что не попало в рейтинг</h2>
+      <div class="sub">Площадки без полных данных не ранжируются, но их важно видеть</div>
+      <div id="side-note-spend"></div>
+      <div id="side-note-deals"></div>
+    </div>
+  </aside>
+
+  <main>
+    <div id="rank-list"></div>
+
+    <div class="panel">
+      <div class="legend">
+        <span><span class="dot" style="background:var(--good)"></span>лучше медианы по CPM среди ранжируемых</span>
+        <span><span class="dot" style="background:var(--bad)"></span>хуже медианы по CPM среди ранжируемых</span>
+        <span>Score = взвешенная сумма нормализованных CPA и CPM (0–100). Постклик подключится вместе с Метрикой.</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ---- реальные данные: data/merged_august2026.csv (расход из "Ежемесячная статистика MI // Level",
+// сделки из BI-выгрузки клиента за август 2026, модель атрибуции "Участие") ----
+// Постклик (отказы / время на сайте) пока не подключён — ждём доступ к API Метрики.
+const DISPLAY_NAMES = {
+  yandex: "Яндекс (медийка)", mts: "МТС", tbank: "Т-Банк", alfabank: "Альфа-Банк",
+  ozon: "Ozon", adheads: "AdHeads", cre: "CRE",
+  astralab: "Astralab", yandex_go: "Яндекс Go", avito: "Avito", yandexmarket: "Яндекс.Маркет",
+  adspector: "Adspector OLV", buzzoola: "Buzzoola", wildberries: "Wildberries",
+  digital_alliance: "Digital Alliance", pyaterochka: "Пятёрочка", rutube: "Rutube",
+  roxot: "Roxot", soloway: "Soloway", first_data: "First Data", vk_ads: "VK Ads",
+  vox: "VOX", innovation_lab: "Innovation Lab", "2gis": "2GIS", marketcall: "Marketcall",
+  smi2: "СМИ2", tiburon: "Tiburon", amberdata: "Amberdata",
+  cian: "Cian", "novostroy-m": "Novostroy-M", pronovostroiki: "Pronovostroiki",
+  move: "Move", mskguru: "Mskguru", rbc: "РБК", irn: "IRN", gdeetotdom: "ГдеЭтотДом",
+  mobidriven: "Mobidriven", "novostroy-gid": "Novostroy-Gid", turbotarget: "Turbotarget",
+  getintent: "GetIntent", slickjump: "Slickjump", "novostroy-city": "Novostroy-City",
+  dcreo: "Dcreo", onetarget: "Onetarget", thecottage: "TheCottage", qbid: "q.bid",
+  aviasales: "Aviasales",
+};
+const name = p => DISPLAY_NAMES[p] || p;
+
+// площадки, где есть И расход, И BI-сделки — только их можно честно ранжировать по CPA
+const RANKED = [
+  { platform: "yandex", cost: 10619809.51, impr: 67371186, clicks: 172989, conversions: 3 },
+  { platform: "mts", cost: 6204822.45, impr: 31638922, clicks: 263336, conversions: 1 },
+  { platform: "tbank", cost: 4528591.25, impr: 3892401, clicks: 43565, conversions: 2 },
+  { platform: "alfabank", cost: 2398983.58, impr: 2104550, clicks: 6460, conversions: 1 },
+  { platform: "ozon", cost: 2348362.49, impr: 7948185, clicks: 5414, conversions: 3 },
+  { platform: "adheads", cost: 612618.58, impr: 1806956, clicks: 10841, conversions: 6 },
+  { platform: "cre", cost: 556158.96, impr: 24386, clicks: 11, conversions: 3 },
+];
+
+// есть расход в этом файле, но 0 сделок в BI за август — риск слитого бюджета либо
+// эффект отложенной атрибуции (сделка ещё не закрылась)
+const SPEND_ONLY = [
+  { platform: "astralab", cost: 3001029.94 }, { platform: "yandex_go", cost: 2201333.95 },
+  { platform: "avito", cost: 2034887.09 }, { platform: "yandexmarket", cost: 1478239.97 },
+  { platform: "adspector", cost: 1364223.18 }, { platform: "buzzoola", cost: 1232829.76 },
+  { platform: "wildberries", cost: 718378.02 }, { platform: "digital_alliance", cost: 699857.88 },
+  { platform: "pyaterochka", cost: 673749.25 }, { platform: "rutube", cost: 579332.25 },
+  { platform: "roxot", cost: 560992.21 }, { platform: "soloway", cost: 401609.05 },
+  { platform: "first_data", cost: 367830.23 }, { platform: "vk_ads", cost: 367771.14 },
+  { platform: "vox", cost: 363337.27 }, { platform: "innovation_lab", cost: 270910.98 },
+  { platform: "2gis", cost: 225635.57 }, { platform: "marketcall", cost: 183915.0 },
+  { platform: "smi2", cost: 182995.42 }, { platform: "tiburon", cost: 49044.0 },
+  { platform: "amberdata", cost: 42082.03 },
+];
+
+// есть сделки в BI, но расход на эти площадки не найден в файле "Ежемесячная статистика MI // Level" —
+// вероятно, ведутся в другом бюджетном документе (прямые размещения на порталах)
+const DEALS_ONLY = [
+  { platform: "cian", deals: 32 }, { platform: "novostroy-m", deals: 9 },
+  { platform: "pronovostroiki", deals: 6 }, { platform: "move", deals: 5 },
+  { platform: "mskguru", deals: 5 }, { platform: "rbc", deals: 3 },
+  { platform: "irn", deals: 2 }, { platform: "gdeetotdom", deals: 2 },
+  { platform: "mobidriven", deals: 2 }, { platform: "novostroy-gid", deals: 2 },
+  { platform: "turbotarget", deals: 1 }, { platform: "getintent", deals: 1 },
+  { platform: "slickjump", deals: 1 }, { platform: "novostroy-city", deals: 1 },
+  { platform: "dcreo", deals: 1 }, { platform: "onetarget", deals: 1 },
+  { platform: "thecottage", deals: 1 }, { platform: "qbid", deals: 1 },
+  { platform: "aviasales", deals: 1 },
+];
+
+const PLATFORMS = RANKED;
+
+function derive(rows){
+  return rows.map(r => ({
+    ...r,
+    cpm: r.cost / r.impr * 1000,
+    cpa: r.conversions > 0 ? r.cost / r.conversions : Infinity,
+    bounce: null, timeOnSite: null,
+  }));
+}
+
+// normalize helper: higher raw value -> higher norm (0..1); invert=true flips direction
+function normalize(rows, key, invert){
+  const vals = rows.map(r => r[key]).filter(v => Number.isFinite(v));
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = max - min || 1;
+  return rows.map(r => {
+    if (!Number.isFinite(r[key])) return 0;
+    let n = (r[key] - min) / range;
+    return invert ? 1 - n : n;
+  });
+}
+
+function median(arr){
+  const s = [...arr].sort((a,b)=>a-b);
+  const mid = Math.floor(s.length/2);
+  return s.length % 2 ? s[mid] : (s[mid-1]+s[mid])/2;
+}
+
+function computeScores(){
+  const data = derive(PLATFORMS);
+
+  const wCpa = +document.getElementById('w-cpa').value;
+  const wCpm = +document.getElementById('w-cpm').value;
+  // постклик временно исключён из формулы — нет данных Метрики
+  const total = (wCpa + wCpm) || 1;
+
+  const cpaNorm = normalize(data, 'cpa', true);
+  const cpmNorm = normalize(data, 'cpm', true);
+  const cpmMed = median(data.map(r=>r.cpm));
+
+  const scored = data.map((r, i) => {
+    const score = (cpaNorm[i] * wCpa + cpmNorm[i] * wCpm) / total * 100;
+    return { ...r, score, cpmGood: r.cpm <= cpmMed };
+  });
+
+  scored.sort((a,b) => b.score - a.score);
+  return scored;
+}
+
+function fmt(n, digits=0){
+  return n.toLocaleString('ru-RU', { maximumFractionDigits: digits, minimumFractionDigits: digits });
+}
+
+function renderSideLists(){
+  const spendBox = document.getElementById('side-note-spend');
+  const dealsBox = document.getElementById('side-note-deals');
+
+  const topSpendOnly = [...SPEND_ONLY].sort((a,b) => b.cost - a.cost).slice(0, 8);
+  spendBox.innerHTML = `
+    <div class="side-list">
+      <h3>Расход есть, сделок — 0 (топ-8 по расходу)</h3>
+      ${topSpendOnly.map(r => `
+        <div class="side-row">
+          <span class="name">${name(r.platform)}</span>
+          <span class="val warn">${fmt(r.cost)} ₽</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  const topDealsOnly = [...DEALS_ONLY].sort((a,b) => b.deals - a.deals).slice(0, 8);
+  dealsBox.innerHTML = `
+    <div class="side-list">
+      <h3>Сделки есть, расхода нет в файле (топ-8 по сделкам)</h3>
+      ${topDealsOnly.map(r => `
+        <div class="side-row">
+          <span class="name">${name(r.platform)}</span>
+          <span class="val">${r.deals} сделок</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function render(){
+  document.getElementById('val-cpa').textContent = document.getElementById('w-cpa').value + '%';
+  document.getElementById('val-cpm').textContent = document.getElementById('w-cpm').value + '%';
+
+  const wCpa = +document.getElementById('w-cpa').value;
+  const wCpm = +document.getElementById('w-cpm').value;
+  const total = wCpa + wCpm;
+  const totalEl = document.getElementById('weights-total');
+  totalEl.textContent = total + '%';
+  document.getElementById('weights-sum').classList.toggle('balanced', total === 100);
+
+  const scored = computeScores();
+  const maxScore = Math.max(...scored.map(r=>r.score), 1);
+
+  const list = document.getElementById('rank-list');
+  list.innerHTML = scored.map((r, i) => `
+    <div class="rank-item ${i===0 ? 'top' : ''}">
+      <div class="rank-num mono">${i+1}</div>
+      <div class="rank-main">
+        <div class="rank-title-row">
+          <span class="platform-name">${name(r.platform)}</span>
+        </div>
+        <div class="score-bar-track">
+          <div class="score-bar-fill" style="width:${(r.score/maxScore*100).toFixed(1)}%"></div>
+        </div>
+        <div class="metric-row">
+          <span class="m"><span class="lbl">CPA</span><span class="v">${Number.isFinite(r.cpa) ? fmt(r.cpa) + ' ₽' : '—'}</span></span>
+          <span class="m"><span class="lbl">CPM</span><span class="v ${r.cpmGood ? 'flag-good' : 'flag-bad'}">${fmt(r.cpm)} ₽</span></span>
+          <span class="m"><span class="lbl">Сделки BI</span><span class="v">${r.conversions}</span></span>
+          <span class="m"><span class="lbl">Расход</span><span class="v">${fmt(r.cost)} ₽</span></span>
+        </div>
+      </div>
+      <div class="score-col">
+        <div class="score-value mono">${fmt(r.score,1)}</div>
+        <div class="score-unit">score / 100</div>
+      </div>
+    </div>
+  `).join('');
+
+  renderSideLists();
+}
+
+const PRESETS = {
+  balanced: { cpa:60, cpm:40 },
+  cpa:      { cpa:85, cpm:15 },
+  cpm:      { cpa:30, cpm:70 },
+};
+
+function applyPreset(presetName){
+  const p = PRESETS[presetName];
+  if (!p) return; // "постклик"-пресет временно недоступен без данных Метрики
+  document.getElementById('w-cpa').value = p.cpa;
+  document.getElementById('w-cpm').value = p.cpm;
+  render();
+}
+
+document.querySelectorAll('input[type=range]:not([disabled])').forEach(el => el.addEventListener('input', render));
+document.querySelectorAll('.presets button').forEach(btn => {
+  btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+});
+
+render();
+</script>
