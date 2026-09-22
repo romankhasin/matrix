@@ -114,6 +114,9 @@ ALIASES = {
     "first-data": "first_data",
     "voxexchange": "vox",
     "не определено": "unmapped",
+
+    # --- варианты из свода конверсий за май-июль 2026 ---
+    "яндекс rtb": "yandex_rtb",
 }
 
 SUFFIX_STRIP = [" медийка", " тгб", " брендирование"]
