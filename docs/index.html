@@ -197,6 +197,8 @@
   }
   .month-tabs button:hover{border-color:var(--accent); color:var(--text);}
   .month-tabs button.active{background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:600;}
+  .month-tabs button.all-btn{border-style:dashed;}
+  .month-tabs button.all-btn.active{border-style:solid;}
 
   .header-right{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
   .help-btn{
@@ -275,7 +277,7 @@
       <h2 id="help-title">Как читать этот дашборд</h2>
       <button class="modal-close" id="help-close" aria-label="Закрыть">✕</button>
     </div>
-    <div class="modal-lede">Коротко: это <b>не демо и не примерные цифры</b>. Всё, что вы видите ниже, посчитано по реальным данным проекта за выбранный месяц — расходы, сделки и поведение посетителей на сайте берутся напрямую из систем клиента и рекламных кабинетов, без ручных прикидок.</div>
+    <div class="modal-lede">Коротко: это <b>не демо и не примерные цифры</b>. Всё, что вы видите ниже, посчитано по реальным данным проекта за выбранный период (один месяц, несколько или все сразу) — расходы, сделки и поведение посетителей на сайте берутся напрямую из систем клиента и рекламных кабинетов, без ручных прикидок.</div>
 
     <div class="modal-body">
       <h3>Откуда берутся цифры</h3>
@@ -299,7 +301,7 @@
       <ul>
         <li>Ползунки весов — расставляете приоритеты (например, «CPA важнее всего»), рейтинг пересчитывается мгновенно на тех же реальных данных, без перезагрузки.</li>
         <li>Кнопки-пресеты — готовые сценарии расстановки весов.</li>
-        <li>Вкладки месяцев наверху — переключение между реальными периодами.</li>
+        <li>Вкладки месяцев наверху — переключение между реальными периодами. Можно выбрать один месяц, кликнуть несколько или нажать «Все месяцы» — данные за них суммируются (отказы и время на сайте — усредняются с весом по кликам).</li>
       </ul>
 
       <h3>Честно об ограничениях</h3>
@@ -455,31 +457,94 @@ const MONTHS = {
 };
 
 const MONTH_ORDER = ["may2026", "jun2026", "jul2026", "aug2026"];
-let currentMonth = "aug2026";
+let selectedMonths = new Set(["aug2026"]);
 
-let PLATFORMS = MONTHS[currentMonth].ranked;
-let SPEND_ONLY = MONTHS[currentMonth].spendOnly;
-let DEALS_ONLY = MONTHS[currentMonth].dealsOnly;
+// сведение нескольких месяцев в один набор: расход/показы/клики/сделки суммируются,
+// отказы и время на сайте — взвешенное по кликам среднее (та же логика, что для сведения
+// двух счётчиков Метрики). Площадка классифицируется как ranked, если после сведения
+// у неё есть и показы (постклик), и сделки; иначе — spendOnly или dealsOnly.
+function aggregateMonths(keys){
+  if (keys.length === 1){
+    const m = MONTHS[keys[0]];
+    return { ranked: m.ranked, spendOnly: m.spendOnly, dealsOnly: m.dealsOnly };
+  }
+  const acc = {};
+  const get = p => acc[p] || (acc[p] = { platform:p, cost:0, impr:0, clicks:0, deals:0, bounceWSum:0, timeWSum:0, postclickClicks:0 });
+
+  keys.forEach(k => {
+    const m = MONTHS[k];
+    m.ranked.forEach(r => {
+      const a = get(r.platform);
+      a.cost += r.cost; a.impr += r.impr; a.clicks += r.clicks; a.deals += r.conversions;
+      a.bounceWSum += r.bounce * r.clicks; a.timeWSum += r.timeOnSite * r.clicks; a.postclickClicks += r.clicks;
+    });
+    m.spendOnly.forEach(r => { get(r.platform).cost += r.cost; });
+    m.dealsOnly.forEach(r => { get(r.platform).deals += r.deals; });
+  });
+
+  const ranked = [], spendOnly = [], dealsOnly = [];
+  Object.values(acc).forEach(a => {
+    if (a.impr > 0 && a.postclickClicks > 0 && a.deals > 0){
+      ranked.push({
+        platform: a.platform, cost: a.cost, impr: a.impr, clicks: a.clicks, conversions: a.deals,
+        bounce: a.bounceWSum / a.postclickClicks, timeOnSite: a.timeWSum / a.postclickClicks,
+      });
+    } else if (a.cost > 0){
+      spendOnly.push({ platform: a.platform, cost: a.cost });
+    } else if (a.deals > 0){
+      dealsOnly.push({ platform: a.platform, deals: a.deals });
+    }
+  });
+  return { ranked, spendOnly, dealsOnly };
+}
+
+function periodLabelText(){
+  const keys = MONTH_ORDER.filter(k => selectedMonths.has(k));
+  if (keys.length === MONTH_ORDER.length) return 'реальные данные · все месяцы (май–авг 2026)';
+  if (keys.length === 1) return 'реальные данные · ' + MONTHS[keys[0]].label.replace('20', '');
+  return 'реальные данные · ' + keys.map(k => MONTHS[k].label.replace(' 2026','').replace('2026','')).join(' + ') + ' 2026';
+}
 
 function renderMonthTabs(){
   const box = document.getElementById('month-tabs');
+  const allActive = selectedMonths.size === MONTH_ORDER.length;
   box.innerHTML = MONTH_ORDER.map(k => `
-    <button data-month="${k}" class="${k===currentMonth ? 'active' : ''}">${MONTHS[k].label}</button>
-  `).join('');
-  box.querySelectorAll('button').forEach(btn => {
-    btn.addEventListener('click', () => selectMonth(btn.dataset.month));
+    <button data-month="${k}" class="${selectedMonths.has(k) ? 'active' : ''}">${MONTHS[k].label}</button>
+  `).join('') + `<button data-all="1" class="all-btn ${allActive ? 'active' : ''}">Все месяцы</button>`;
+  box.querySelectorAll('button[data-month]').forEach(btn => {
+    btn.addEventListener('click', () => toggleMonth(btn.dataset.month));
   });
+  box.querySelector('button[data-all]').addEventListener('click', toggleAllMonths);
 }
 
-function selectMonth(key){
-  currentMonth = key;
-  PLATFORMS = MONTHS[key].ranked;
-  SPEND_ONLY = MONTHS[key].spendOnly;
-  DEALS_ONLY = MONTHS[key].dealsOnly;
-  document.getElementById('period-label').textContent = 'реальные данные · ' + MONTHS[key].label.replace('20', '');
+function applySelection(){
+  const keys = MONTH_ORDER.filter(k => selectedMonths.has(k));
+  const agg = aggregateMonths(keys);
+  PLATFORMS = agg.ranked;
+  SPEND_ONLY = agg.spendOnly;
+  DEALS_ONLY = agg.dealsOnly;
+  document.getElementById('period-label').textContent = periodLabelText();
   renderMonthTabs();
   render();
 }
+
+function toggleMonth(key){
+  if (selectedMonths.has(key)){
+    if (selectedMonths.size > 1) selectedMonths.delete(key); // хотя бы один месяц должен остаться выбран
+  } else {
+    selectedMonths.add(key);
+  }
+  applySelection();
+}
+
+function toggleAllMonths(){
+  selectedMonths = selectedMonths.size === MONTH_ORDER.length
+    ? new Set([MONTH_ORDER[MONTH_ORDER.length - 1]])
+    : new Set(MONTH_ORDER);
+  applySelection();
+}
+
+let PLATFORMS, SPEND_ONLY, DEALS_ONLY;
 
 function derive(rows){
   return rows.map(r => ({
@@ -638,8 +703,7 @@ document.querySelectorAll('.presets button').forEach(btn => {
   btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
 });
 
-renderMonthTabs();
-render();
+applySelection();
 
 const helpBtn = document.getElementById('help-btn');
 const helpOverlay = document.getElementById('help-overlay');
