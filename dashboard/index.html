@@ -197,6 +197,64 @@
   }
   .month-tabs button:hover{border-color:var(--accent); color:var(--text);}
   .month-tabs button.active{background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:600;}
+
+  .header-right{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .help-btn{
+    font-family:var(--font-body); font-size:12.5px; font-weight:500; padding:8px 14px;
+    border-radius:8px; border:1px solid var(--line); background:var(--surface-2);
+    color:var(--text); cursor:pointer; display:inline-flex; align-items:center; gap:7px;
+    white-space:nowrap;
+  }
+  .help-btn:hover{border-color:var(--accent); color:var(--accent);}
+  .help-btn .ico{
+    width:16px; height:16px; border-radius:50%; border:1.5px solid currentColor;
+    display:inline-flex; align-items:center; justify-content:center; font-size:11px;
+    font-family:var(--font-mono); flex:none;
+  }
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(10,12,16,.6); z-index:100;
+    display:none; align-items:flex-start; justify-content:center;
+    padding:6vh 16px; overflow-y:auto;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px;
+    max-width:600px; width:100%; padding:26px 26px 24px; box-shadow:0 20px 60px rgba(0,0,0,.35);
+  }
+  .modal-head{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+    margin-bottom:6px;
+  }
+  .modal-head h2{font-size:20px; letter-spacing:-.01em;}
+  .modal-close{
+    font-family:var(--font-body); font-size:14px; width:30px; height:30px; flex:none;
+    border-radius:50%; border:1px solid var(--line); background:var(--surface-2);
+    color:var(--text-dim); cursor:pointer;
+  }
+  .modal-close:hover{color:var(--text); border-color:var(--accent);}
+  .modal-lede{font-size:13.5px; color:var(--text-dim); line-height:1.55; margin-bottom:18px;}
+  .modal-lede b{color:var(--good); font-weight:600;}
+  .modal-body h3{
+    font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--accent);
+    font-family:var(--font-body); font-weight:600; margin:18px 0 8px;
+  }
+  .modal-body h3:first-child{margin-top:0;}
+  .modal-body p, .modal-body li{font-size:13.5px; color:var(--text); line-height:1.6;}
+  .modal-body ul{margin:0; padding-left:18px;}
+  .modal-body li{margin-bottom:6px;}
+  .modal-body li:last-child{margin-bottom:0;}
+  .modal-body .src{
+    background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; margin-bottom:4px;
+  }
+  .modal-body .src + .src{margin-top:8px;}
+  .modal-body .src .k{font-weight:600; font-size:13px;}
+  .modal-body .src .d{font-size:12.5px; color:var(--text-dim); margin-top:3px; line-height:1.5;}
+  .modal-foot{
+    margin-top:18px; padding-top:14px; border-top:1px solid var(--line);
+    font-size:12px; color:var(--text-faint); line-height:1.5;
+  }
 </style>
 
 <header>
@@ -205,8 +263,56 @@
     <h1>Приоритет размещения на новый месяц</h1>
     <p>Скоринг площадок по стоимости конверсии, качеству постклика и CPM. Двигайте веса — рейтинг пересчитывается сразу.</p>
   </div>
-  <div class="period mono" id="period-label">реальные данные · авг 2026</div>
+  <div class="header-right">
+    <div class="period mono" id="period-label">реальные данные · авг 2026</div>
+    <button class="help-btn" id="help-btn" type="button"><span class="ico">?</span>Как это работает</button>
+  </div>
 </header>
+
+<div class="modal-overlay" id="help-overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <div class="modal-head">
+      <h2 id="help-title">Как читать этот дашборд</h2>
+      <button class="modal-close" id="help-close" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-lede">Коротко: это <b>не демо и не примерные цифры</b>. Всё, что вы видите ниже, посчитано по реальным данным проекта за выбранный месяц — расходы, сделки и поведение посетителей на сайте берутся напрямую из систем клиента и рекламных кабинетов, без ручных прикидок.</div>
+
+    <div class="modal-body">
+      <h3>Откуда берутся цифры</h3>
+      <div class="src">
+        <div class="k">💰 Расход на рекламу</div>
+        <div class="d">Из ежемесячного отчёта по медиаплану — сколько реально потрачено на каждую площадку.</div>
+      </div>
+      <div class="src">
+        <div class="k">🤝 Сделки</div>
+        <div class="d">Из CRM клиента (BI-выгрузка): считаются реальные сделки, а не заявки или клики. Если у площадки 0 сделок за месяц — так и показано, цифра не «дорисовывается».</div>
+      </div>
+      <div class="src">
+        <div class="k">👀 Поведение на сайте</div>
+        <div class="d">Из Яндекс.Метрики — отказы и время на сайте берутся по счётчикам, которые стоят на сайте клиента, и раскладываются по площадкам через UTM-метки.</div>
+      </div>
+
+      <h3>Как считается рейтинг</h3>
+      <p>Для каждой площадки сравниваются три вещи: во сколько ей в среднем обходится одна сделка (CPA), насколько «вовлечённо» ведут себя посетители после перехода (постклик — отказы и время на сайте), и сколько стоит 1000 показов (CPM). По каждой метрике площадки сравниваются между собой и получают балл от 0 до 100 — итоговый Score — это их сумма с учётом весов, которые задаёт пользователь ползунками слева.</p>
+
+      <h3>Что можно менять</h3>
+      <ul>
+        <li>Ползунки весов — расставляете приоритеты (например, «CPA важнее всего»), рейтинг пересчитывается мгновенно на тех же реальных данных, без перезагрузки.</li>
+        <li>Кнопки-пресеты — готовые сценарии расстановки весов.</li>
+        <li>Вкладки месяцев наверху — переключение между реальными периодами.</li>
+      </ul>
+
+      <h3>Честно об ограничениях</h3>
+      <ul>
+        <li>В рейтинг попадают только площадки, по которым есть и расход, и сделки одновременно. Остальные — с расходом без сделок или сделками без расхода — вынесены рядом, в блок «Что не попало в рейтинг», а не спрятаны.</li>
+        <li>По части прямых размещений расход пока не подключён к общему файлу — такие площадки видно отдельно, а не смешаны с основным рейтингом.</li>
+        <li>Сделка засчитывается в тот месяц, когда она закрылась, а не в месяц, когда был потрачен бюджет, который к ней привёл — при долгом цикле сделки это может слегка занижать CPA у самых свежих месяцев.</li>
+      </ul>
+    </div>
+
+    <div class="modal-foot">Если сомневаетесь в какой-то цифре — спросите источник у команды: для каждой метрики известно, из какого именно отчёта или счётчика она взята.</div>
+  </div>
+</div>
 
 <div class="month-tabs" id="month-tabs"></div>
 
@@ -534,4 +640,14 @@ document.querySelectorAll('.presets button').forEach(btn => {
 
 renderMonthTabs();
 render();
+
+const helpBtn = document.getElementById('help-btn');
+const helpOverlay = document.getElementById('help-overlay');
+const helpClose = document.getElementById('help-close');
+function openHelp(){ helpOverlay.classList.add('open'); }
+function closeHelp(){ helpOverlay.classList.remove('open'); }
+helpBtn.addEventListener('click', openHelp);
+helpClose.addEventListener('click', closeHelp);
+helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) closeHelp(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHelp(); });
 </script>
