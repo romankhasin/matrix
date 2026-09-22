@@ -1,0 +1,53 @@
+platform,cost,impressions,clicks,cpm,cpc,deals_bi,cpa,has_spend,has_deals,raw_spend_names,bounce_rate,avg_time_on_site_sec,metrika_visits
+yandex,11179801.3,52130857,295615,214.46,37.82,72,155275.02,True,True,Promopages.yandex.ru; Video yandex; Video yandex (Connected TV); media.yandex; Яндекс Погода,31.49,158.9,457155
+mts,5480630.78,27937322,351780,196.18,15.58,22,249119.58,True,True,Mts.ru OLV,31.45,95.1,291306
+ozon,4083227.94,13385686,11196,305.04,364.7,11,371202.54,True,True,Ozon,42.25,133.0,8994
+yandex_go,2163350.94,6914292,14441,312.88,149.81,0,,True,False,Яндекс Go,44.37,119.0,12734
+yandexmarket,2011445.19,5058425,10918,397.64,184.23,3,670481.73,True,True,Market yandex,42.83,141.0,8208
+astralab,1964212.08,6410663,21039,306.4,93.36,0,,True,False,Astralab,30.53,92.0,18735
+avito,1661984.53,4767668,9594,348.59,173.23,1,1661984.53,True,True,Avito,33.33,148.0,6
+roxot,1307435.37,20638419,69609,63.35,18.78,0,,True,False,Roxot,35.13,79.0,20651
+buzzoola,1121780.96,3660807,54701,306.43,20.51,0,,True,False,Buzzoola,29.3,99.0,33372
+rutube,1109927.02,3679742,42975,301.63,25.83,2,554963.51,True,True,Rutube,64.9,71.0,23848
+aviasales,844520.21,341792,422,2470.86,2001.23,0,,True,False,Aviasales,51.75,154.0,342
+pyaterochka,631901.29,1476838,1769,427.87,357.21,0,,True,False,Пятерочка,37.18,115.0,1334
+tbank,613663.05,719849,6356,852.49,96.55,0,,True,False,Т-Банк,53.71,70.0,5515
+avito_olv,596280.88,1643746,3751,362.76,158.97,0,,True,False,Avito OLV,,,
+adheads,547780.59,1674128,10614,327.2,51.61,18,30432.25,True,True,Adsheads,29.85,125.8,9386
+innovation_lab,493505.25,1750122,17375,281.98,28.4,0,,True,False,Innovation Lab,,,
+adspector,486516.48,3211934,43317,151.47,11.23,0,,True,False,Adspector OLV,26.31,77.0,34594
+targetads,421283.4,0,0,,,0,,True,False,TargetAds,,,
+mobidriven,367879.04,3419070,5912,107.6,62.23,2,183939.52,True,True,Mobidriven,49.98,81.0,4098
+wildberries,367830.0,8338268,10275,44.11,35.8,1,367830.0,True,True,Wildberries,45.25,95.0,6007
+vox,367826.43,1350365,3382,272.39,108.76,0,,True,False,VOX,32.55,143.0,2645
+astralab_video,307125.79,720005,5529,426.56,55.55,0,,True,False,Astralab Video,,,
+дзен_статьи,304157.37,2245053,32396,135.48,9.39,0,,True,False,Дзен Статьи,,,
+мтс,235227.29,1040797,3837,226.01,61.3,0,,True,False,МТС,,,
+2gis,225635.57,246864,7504,914.01,30.07,0,,True,False,2Gis; 2gis,17.99,593.7,478
+qbid_video,181462.8,1004012,11942,180.74,15.2,0,,True,False,qbid video,,,
+qbid_banner,138610.65,3001440,7923,46.18,17.49,0,,True,False,qbid banner,,,
+дзен_сообщество,132385.1,1276160,4376,103.74,30.25,0,,True,False,Дзен Сообщество,,,
+marketcall,109582.69,0,2,,54791.34,0,,True,False,Marketcall,,,
+amberdata,47738.77,0,0,,,0,,True,False,Amberdata,,,
+cian,0,0,0,,,37,,False,True,,38.51,151.9,6102
+novostroy-m,0,0,0,,,17,,False,True,,24.36,161.0,5476
+move,0,0,0,,,11,,False,True,,50.74,317.9,5938
+mskguru,0,0,0,,,9,,False,True,,14.08,219.0,476
+pronovostroiki,0,0,0,,,8,,False,True,,14.17,157.2,621
+onetarget,0,0,0,,,4,,False,True,,,,
+gdeetotdom,0,0,0,,,3,,False,True,,,,
+novostroy-gid,0,0,0,,,3,,False,True,,32.59,122.0,1031
+irn,0,0,0,,,3,,False,True,,100.0,0.0,1
+cre,0,0,0,,,2,,False,True,,0.0,339.0,1
+qbid,0,0,0,,,1,,False,True,,28.46,69.1,12383
+reforum,0,0,0,,,1,,False,True,,,,
+hyper,0,0,0,,,1,,False,True,,66.67,66.0,3
+byyd,0,0,0,,,1,,False,True,,31.43,73.0,35
+beeline,0,0,0,,,1,,False,True,,,,
+slickjump,0,0,0,,,1,,False,True,,,,
+turbotarget,0,0,0,,,1,,False,True,,,,
+rutube_media_network,0,0,0,,,1,,False,True,,,,
+netmonet,0,0,0,,,1,,False,True,,27.27,277.5,11
+alfabank,0,0,0,,,1,,False,True,,31.25,141.0,16
+youtube,0,0,0,,,1,,False,True,,56.25,61.0,16
+mirkvartir_регионы,0,0,0,,,1,,False,True,,,,

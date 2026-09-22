@@ -1,0 +1,72 @@
+platform,cost,impressions,clicks,cpm,cpc,deals_bi,cpa,has_spend,has_deals,raw_spend_names,bounce_rate,avg_time_on_site_sec,metrika_visits
+yandex,11908832.79,71447088,343024,166.68,34.72,83,143479.91,True,True,Promopages.yandex.ru; Video yandex; media.yandex,27.19,169.8,484441
+mts,2513057.07,14086400,170069,178.4,14.78,23,109263.35,True,True,Mts.ru OLV,26.89,123.8,145773
+adspector,2444516.31,16405830,232132,149.0,10.53,0,,True,False,Adspector OLV,28.02,79.3,173001
+ozon,2391284.85,10588112,11035,225.85,216.7,20,119564.24,True,True,Ozon,48.86,104.0,8537
+avito,2297132.94,6186380,13391,371.32,171.54,1,2297132.94,True,True,Avito,36.09,72.7,230
+tbank,2212350.0,2150000,12264,1029.0,180.39,1,2212350.0,True,True,Т-Банк,48.2,121.0,6658
+rutube,2107915.02,8289820,47187,254.28,44.67,1,2107915.02,True,True,Rutube,61.9,82.0,25049
+yandex_go,1842069.0,5967295,12625,308.69,145.91,0,,True,False,Яндекс Go,49.18,105.0,10525
+yandexmarket,1789882.68,4429920,11301,404.04,158.38,6,298313.78,True,True,Market yandex,43.55,125.0,8910
+vk_ads,1181501.94,15275685,87784,77.35,13.46,0,,True,False,VK Ads,0.0,31.0,4
+buzzoola,1127624.2,3681720,82740,306.28,13.63,0,,True,False,Buzzoola,24.79,73.0,57486
+plazkart,900140.19,2159262,15351,416.87,58.64,8,112517.52,True,True,Plazkart,52.79,98.0,12403
+astralab,781270.92,2296874,8697,340.15,89.83,0,,True,False,Astralab,26.94,106.0,6533
+aviasales,706527.45,258288,472,2735.43,1496.88,0,,True,False,Aviasales,34.73,294.0,429
+solta,703754.96,5127638,28348,137.25,24.83,0,,True,False,SOLTA,24.75,98.0,14298
+roxot,639586.73,7194004,16505,88.91,38.75,2,319793.36,True,True,Roxot,22.11,120.0,12192
+q.bid_olv,507526.03,2796860,30839,181.46,16.46,0,,True,False,q.bid OLV,,,
+qbid,435516.0,2400000,33771,181.46,12.9,1,435516.0,True,True,qbid,28.29,80.6,35753
+"targetads_(прямой,_без_ндс)",407233.91,0,0,,,0,,True,False,"TargetAds (прямой, без НДС)",,,
+adheads,360671.66,1746596,10924,206.5,33.02,21,17174.84,True,True,Adsheads,38.48,118.1,6934
+дзен_статьи,301018.76,2034729,29493,147.94,10.21,0,,True,False,Дзен Статьи,,,
+avito_olv,284619.51,1137877,2643,250.13,107.69,0,,True,False,Avito OLV,,,
+2gis,225635.69,243136,7432,928.02,30.36,0,,True,False,2Gis; 2gis,13.31,437.7,466
+мтс,222136.62,2019333,6960,110.0,31.92,0,,True,False,МТС,,,
+pass24,151890.0,261727,1606,580.34,94.58,1,151890.0,True,True,Pass24,56.12,76.0,376
+vk_ads_сообщество,140454.14,573143,2459,245.06,57.12,0,,True,False,VK Ads Сообщество,,,
+дзен_сообщество,133287.61,930241,3409,143.28,39.1,0,,True,False,Дзен Сообщество,,,
+"targetads_(прямой,_без_ндс)_-_видео-код",35220.83,0,0,,,0,,True,False,"TargetAds (прямой, без НДС) - Видео-код",,,
+"targetads_(прямой,_без_ндс)_-_js-трекинг",14146.73,0,0,,,0,,True,False,"TargetAds (прямой, без НДС) - JS-трекинг",,,
+cian,0,0,0,,,62,,False,True,,35.95,156.0,2512
+novostroy-m,0,0,0,,,33,,False,True,,25.99,141.0,12276
+novostroy-gid,0,0,0,,,8,,False,True,,16.72,142.0,2303
+move,0,0,0,,,6,,False,True,,71.95,191.8,9549
+mobidriven,0,0,0,,,6,,False,True,,0.0,20.0,1
+mskguru,0,0,0,,,5,,False,True,,15.2,209.0,691
+pronovostroiki,0,0,0,,,5,,False,True,,17.87,97.2,12750
+dv360,0,0,0,,,5,,False,True,,,,
+irn,0,0,0,,,4,,False,True,,,,
+byyd,0,0,0,,,3,,False,True,,42.86,78.0,28
+realty_tgb,0,0,0,,,2,,False,True,,,,
+rbc,0,0,0,,,2,,False,True,,,,
+sbol,0,0,0,,,2,,False,True,,,,
+getintent,0,0,0,,,2,,False,True,,0.0,256.0,2
+mosdom,0,0,0,,,2,,False,True,,,,
+yandex_небоскреб_регионы,0,0,0,,,2,,False,True,,,,
+arendator,0,0,0,,,1,,False,True,,10.95,118.0,2274
+russianrealty,0,0,0,,,1,,False,True,,,,
+медийка,0,0,0,,,1,,False,True,,,,
+smarttv,0,0,0,,,1,,False,True,,,,
+realestate,0,0,0,,,1,,False,True,,,,
+beeline,0,0,0,,,1,,False,True,,,,
+womensnetwork,0,0,0,,,1,,False,True,,,,
+ivi,0,0,0,,,1,,False,True,,33.33,392.0,3
+cre,0,0,0,,,1,,False,True,,,,
+avaho,0,0,0,,,1,,False,True,,,,
+restate,0,0,0,,,1,,False,True,,,,
+criteo,0,0,0,,,1,,False,True,,,,
+sberseller,0,0,0,,,1,,False,True,,25.0,33.0,4
+onetarget,0,0,0,,,1,,False,True,,0.0,68.0,3
+mirkvartir,0,0,0,,,1,,False,True,,,,
+медийка_2gis,0,0,0,,,1,,False,True,,,,
+mediatoday,0,0,0,,,1,,False,True,,,,
+yandex_rtb,0,0,0,,,1,,False,True,,46.15,30.0,26
+wildberries,0,0,0,,,1,,False,True,,0.0,17.0,1
+hyper,0,0,0,,,1,,False,True,,42.85,25.6,14
+between,0,0,0,,,1,,False,True,,,,
+rutube_media_network,0,0,0,,,1,,False,True,,,,
+alfabank,0,0,0,,,1,,False,True,,50.91,132.0,55
+iclicks,0,0,0,,,1,,False,True,,,,
+mirkvartir_регионы,0,0,0,,,1,,False,True,,,,
+youtube,0,0,0,,,1,,False,True,,60.87,145.0,23
