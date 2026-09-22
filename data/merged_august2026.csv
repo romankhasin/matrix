@@ -1,0 +1,48 @@
+platform,cost,impressions,clicks,cpm,cpc,deals_bi,cpa,has_spend,has_deals,raw_spend_names
+yandex,10619809.51,67371186,172989,157.63,61.39,3,3539936.5,True,True,Promopages.yandex.ru; Video yandex; Video yandex (Connected TV); media.yandex; media.yandex Прайм баннер; Дзен; Яндекс Погода
+mts,6204822.45,31638922,263336,196.11,23.56,1,6204822.45,True,True,Mts.ru OLV
+tbank,4528591.25,3892401,43565,1163.44,103.95,2,2264295.63,True,True,Т-Банк
+astralab,3001029.94,6538787,26463,458.96,113.4,0,,True,False,Astralab
+alfabank,2398983.58,2104550,6460,1139.9,371.36,1,2398983.58,True,True,Альфа-Мобайл
+ozon,2348362.49,7948185,5414,295.46,433.76,3,782787.5,True,True,Ozon
+yandex_go,2201333.95,7049616,6182,312.26,356.09,0,,True,False,Яндекс Go
+avito,2034887.09,5837206,9618,348.61,211.57,0,,True,False,Avito
+yandexmarket,1478239.97,3828065,4142,386.16,356.89,0,,True,False,Market yandex
+adspector,1364223.18,7008281,69899,194.66,19.52,0,,True,False,Adspector OLV
+buzzoola,1232829.76,4021955,32176,306.53,38.32,0,,True,False,Buzzoola
+wildberries,718378.02,20095,20095,35749.09,35.75,0,,True,False,Wildberries
+digital_alliance,699857.88,1691931,21085,413.64,33.19,0,,True,False,DIGITAL ALLIANCE; DIGITAL ALLIANCE In-stream; DIGITAL ALLIANCE ONLINE CINEMA PACK
+pyaterochka,673749.25,1566576,2604,430.08,258.74,0,,True,False,Пятерочка
+adheads,612618.58,1806956,10841,339.03,56.51,6,102103.1,True,True,Adsheads
+rutube,579332.25,1500000,19500,386.22,29.71,0,,True,False,Rutube
+roxot,560992.21,1360899,14070,412.22,39.87,0,,True,False,Roxot
+cre,556158.96,24386,11,22806.49,50559.91,3,185386.32,True,True,CRE
+soloway,401609.05,1845000,6375,217.67,63.0,0,,True,False,Soloway
+first_data,367830.23,809062,1618,454.64,227.34,0,,True,False,First Data
+vk_ads,367771.14,749880,75,490.44,4903.62,0,,True,False,VK Ads
+vox,363337.27,1185343,4157,306.53,87.4,0,,True,False,VOX
+innovation_lab,270910.98,960667,6725,282.0,40.28,0,,True,False,Innovation Lab
+2gis,225635.57,254566,7694,886.35,29.33,0,,True,False,2gis
+marketcall,183915.0,0,4,,45978.75,0,,True,False,Marketcall
+smi2,182995.42,2076726,4975,88.12,36.78,0,,True,False,СМИ2
+tiburon,49044.0,0,0,,,0,,True,False,Tiburon
+amberdata,42082.03,957505,1287,43.95,32.7,0,,True,False,Amberdata
+cian,0,0,0,,,32,,False,True,
+novostroy-m,0,0,0,,,9,,False,True,
+pronovostroiki,0,0,0,,,6,,False,True,
+move,0,0,0,,,5,,False,True,
+mskguru,0,0,0,,,5,,False,True,
+rbc,0,0,0,,,3,,False,True,
+irn,0,0,0,,,2,,False,True,
+gdeetotdom,0,0,0,,,2,,False,True,
+mobidriven,0,0,0,,,2,,False,True,
+novostroy-gid,0,0,0,,,2,,False,True,
+turbotarget,0,0,0,,,1,,False,True,
+getintent,0,0,0,,,1,,False,True,
+slickjump,0,0,0,,,1,,False,True,
+novostroy-city,0,0,0,,,1,,False,True,
+dcreo,0,0,0,,,1,,False,True,
+onetarget,0,0,0,,,1,,False,True,
+thecottage,0,0,0,,,1,,False,True,
+qbid,0,0,0,,,1,,False,True,
+aviasales,0,0,0,,,1,,False,True,
