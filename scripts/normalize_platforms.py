@@ -101,6 +101,19 @@ ALIASES = {
     "digital alliance": "digital_alliance",
     "digital alliance online cinema pack": "digital_alliance",
     "digital alliance in-stream": "digital_alliance",
+
+    # --- варианты UTM Source из Яндекс.Метрики (отчёт "Метки UTM", счётчики
+    # ЖК 53197618 и Коммерция 100470605) ---
+    "yandexgo": "yandex_go",
+    "yandex.promopages": "yandex", "promopages": "yandex",
+    "yandex_maps": "yandex", "yandex_mapss": "yandex",
+    "yandex_apartments": "yandex", "yandex_appartments": "yandex",
+    "yandex-pogoda": "yandex", "yandexsmartcamera": "yandex", "dzen": "yandex",
+    "2gis_maps": "2gis",
+    "pronovostroy": "pronovostroiki",
+    "first-data": "first_data",
+    "voxexchange": "vox",
+    "не определено": "unmapped",
 }
 
 SUFFIX_STRIP = [" медийка", " тгб", " брендирование"]
