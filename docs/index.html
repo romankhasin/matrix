@@ -188,6 +188,15 @@
   .side-row .name{color:var(--text);}
   .side-row .val{font-family:var(--font-mono); color:var(--text-dim); white-space:nowrap;}
   .side-row .val.warn{color:var(--bad);}
+
+  .month-tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px;}
+  .month-tabs button{
+    font-family:var(--font-mono); font-size:12px; padding:7px 14px; border-radius:100px;
+    border:1px solid var(--line); background:var(--surface); color:var(--text-dim);
+    cursor:pointer;
+  }
+  .month-tabs button:hover{border-color:var(--accent); color:var(--text);}
+  .month-tabs button.active{background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:600;}
 </style>
 
 <header>
@@ -196,8 +205,10 @@
     <h1>Приоритет размещения на новый месяц</h1>
     <p>Скоринг площадок по стоимости конверсии, качеству постклика и CPM. Двигайте веса — рейтинг пересчитывается сразу.</p>
   </div>
-  <div class="period mono">реальные данные · авг 2026</div>
+  <div class="period mono" id="period-label">реальные данные · авг 2026</div>
 </header>
+
+<div class="month-tabs" id="month-tabs"></div>
 
 <div class="layout">
   <aside>
@@ -257,9 +268,9 @@
         <span class="val mono" id="weights-total">100%</span>
       </div>
 
-      <div class="conv-note">
-        <b>Целевая конверсия для CPA:</b> сделки (модель атрибуции «Участие») из BI клиента, август 2026.<br>
-        <b>Постклик:</b> визиты, отказы и время на сайте — из Яндекс.Метрики (счётчики ЖК 53197618 + Коммерция 100470605), по UTM Source, август 2026. Значения по двум счётчикам сведены визит-взвешенным средним.
+      <div class="conv-note" id="conv-note">
+        <b>Целевая конверсия для CPA:</b> сделки (модель атрибуции «Участие») из BI клиента.<br>
+        <b>Постклик:</b> визиты, отказы и время на сайте — из Яндекс.Метрики (счётчики ЖК 53197618 + Коммерция 100470605), по UTM Source. Значения по двум счётчикам сведены визит-взвешенным средним.
       </div>
     </div>
 
@@ -306,49 +317,63 @@ const DISPLAY_NAMES = {
 };
 const name = p => DISPLAY_NAMES[p] || p;
 
-// площадки, где есть И расход, И BI-сделки — только их можно честно ранжировать по CPA
-const RANKED = [
-  { platform: "yandex", cost: 10619809.51, impr: 67371186, clicks: 172989, conversions: 3, bounce: 32.7, timeOnSite: 165.1 },
-  { platform: "mts", cost: 6204822.45, impr: 31638922, clicks: 263336, conversions: 1, bounce: 30.54, timeOnSite: 97.6 },
-  { platform: "tbank", cost: 4528591.25, impr: 3892401, clicks: 43565, conversions: 2, bounce: 50.92, timeOnSite: 102.0 },
-  { platform: "alfabank", cost: 2398983.58, impr: 2104550, clicks: 6460, conversions: 1, bounce: 48.31, timeOnSite: 81.3 },
-  { platform: "ozon", cost: 2348362.49, impr: 7948185, clicks: 5414, conversions: 3, bounce: 43.16, timeOnSite: 129.0 },
-  { platform: "adheads", cost: 612618.58, impr: 1806956, clicks: 10841, conversions: 6, bounce: 33.63, timeOnSite: 69.1 },
-  { platform: "cre", cost: 556158.96, impr: 24386, clicks: 11, conversions: 3, bounce: 18.18, timeOnSite: 246.0 },
-];
+// многомесячные данные: по каждому месяцу — площадки с расходом+сделками (ranked),
+// только расход без сделок (spendOnly), только сделки без расхода в этом файле (dealsOnly).
+// Сделки — BI клиента, модель атрибуции «Участие» (или «Участие (уник.)» для типа «Сделка» —
+// эквивалентно, см. README); постклик — Яндекс.Метрика, счётчики ЖК 53197618 + Коммерция 100470605.
+const MONTHS = {
+  aug2026: {
+    label: "август 2026",
+    ranked: [{"platform": "yandex", "cost": 10619809.51, "impr": 67371186.0, "clicks": 172989.0, "conversions": 3, "bounce": 32.7, "timeOnSite": 165.1}, {"platform": "mts", "cost": 6204822.45, "impr": 31638922.0, "clicks": 263336.0, "conversions": 1, "bounce": 30.54, "timeOnSite": 97.6}, {"platform": "tbank", "cost": 4528591.25, "impr": 3892401.0, "clicks": 43565.0, "conversions": 2, "bounce": 50.92, "timeOnSite": 102.0}, {"platform": "alfabank", "cost": 2398983.58, "impr": 2104550.0, "clicks": 6460.0, "conversions": 1, "bounce": 48.31, "timeOnSite": 81.3}, {"platform": "ozon", "cost": 2348362.49, "impr": 7948185.0, "clicks": 5414.0, "conversions": 3, "bounce": 43.16, "timeOnSite": 129.0}, {"platform": "adheads", "cost": 612618.58, "impr": 1806956.0, "clicks": 10841.0, "conversions": 6, "bounce": 33.63, "timeOnSite": 69.1}, {"platform": "cre", "cost": 556158.96, "impr": 24386.0, "clicks": 11.0, "conversions": 3, "bounce": 18.18, "timeOnSite": 246.0}],
+    spendOnly: [{"platform": "astralab", "cost": 3001029.94}, {"platform": "yandex_go", "cost": 2201333.95}, {"platform": "avito", "cost": 2034887.09}, {"platform": "yandexmarket", "cost": 1478239.97}, {"platform": "adspector", "cost": 1364223.18}, {"platform": "buzzoola", "cost": 1232829.76}, {"platform": "wildberries", "cost": 718378.02}, {"platform": "digital_alliance", "cost": 699857.88}, {"platform": "pyaterochka", "cost": 673749.25}, {"platform": "rutube", "cost": 579332.25}, {"platform": "roxot", "cost": 560992.21}, {"platform": "soloway", "cost": 401609.05}, {"platform": "first_data", "cost": 367830.23}, {"platform": "vk_ads", "cost": 367771.14}, {"platform": "vox", "cost": 363337.27}, {"platform": "innovation_lab", "cost": 270910.98}, {"platform": "2gis", "cost": 225635.57}, {"platform": "marketcall", "cost": 183915.0}, {"platform": "smi2", "cost": 182995.42}, {"platform": "tiburon", "cost": 49044.0}, {"platform": "amberdata", "cost": 42082.03}],
+    dealsOnly: [{"platform": "cian", "deals": 32}, {"platform": "novostroy-m", "deals": 9}, {"platform": "pronovostroiki", "deals": 6}, {"platform": "move", "deals": 5}, {"platform": "mskguru", "deals": 5}, {"platform": "rbc", "deals": 3}, {"platform": "irn", "deals": 2}, {"platform": "gdeetotdom", "deals": 2}, {"platform": "mobidriven", "deals": 2}, {"platform": "novostroy-gid", "deals": 2}, {"platform": "turbotarget", "deals": 1}, {"platform": "getintent", "deals": 1}, {"platform": "slickjump", "deals": 1}, {"platform": "novostroy-city", "deals": 1}, {"platform": "dcreo", "deals": 1}, {"platform": "onetarget", "deals": 1}, {"platform": "thecottage", "deals": 1}, {"platform": "qbid", "deals": 1}, {"platform": "aviasales", "deals": 1}]
+  },
+  may2026: {
+    label: "май 2026",
+    ranked: [{"platform": "yandex", "cost": 7058526.34, "impr": 41383831.0, "clicks": 178287.0, "conversions": 5, "bounce": 22.71, "timeOnSite": 180.5}, {"platform": "mts", "cost": 4147807.0, "impr": 34531249.0, "clicks": 539274.0, "conversions": 2, "bounce": 50.03, "timeOnSite": 64.0}, {"platform": "ozon", "cost": 1607203.11, "impr": 11095693.0, "clicks": 6329.0, "conversions": 3, "bounce": 49.41, "timeOnSite": 119.0}, {"platform": "yandexmarket", "cost": 1094554.95, "impr": 2741457.0, "clicks": 5014.0, "conversions": 2, "bounce": 38.82, "timeOnSite": 147.0}],
+    spendOnly: [{"platform": "yandex_go", "cost": 1390829.54}, {"platform": "vk_ads", "cost": 1120274.0}, {"platform": "rutube", "cost": 905850.0}, {"platform": "adspector", "cost": 864258.45}, {"platform": "solta", "cost": 763776.53}, {"platform": "q.bid_olv", "cost": 567252.71}, {"platform": "qbid", "cost": 493309.0}, {"platform": "segmento", "cost": 397163.24}, {"platform": "дзен_статьи", "cost": 369065.33}, {"platform": "vk_video", "cost": 359939.48}, {"platform": "мтс", "cost": 343821.94}, {"platform": "pass24", "cost": 336110.0}, {"platform": "targetads_(прямой,_без_ндс)", "cost": 291739.43}, {"platform": "roxot", "cost": 279458.83}, {"platform": "targetads_(прямой,_без_ндс)_-_видео-код", "cost": 191846.52}, {"platform": "дзен_сообщество", "cost": 143453.7}, {"platform": "vk_ads_сообщество", "cost": 138755.31}, {"platform": "фонтанка", "cost": 35072.52}, {"platform": "targetads_(прямой,_без_ндс)_-_js-трекинг", "cost": 23574.72}],
+    dealsOnly: [{"platform": "cian", "deals": 11}, {"platform": "adheads", "deals": 8}, {"platform": "novostroy-m", "deals": 6}, {"platform": "mskguru", "deals": 6}, {"platform": "move", "deals": 5}, {"platform": "pronovostroiki", "deals": 4}, {"platform": "novostroy-gid", "deals": 3}, {"platform": "onetarget", "deals": 2}, {"platform": "яндекс_кинопоиск", "deals": 1}, {"platform": "cre", "deals": 1}, {"platform": "mobidriven", "deals": 1}]
+  },
+  jun2026: {
+    label: "июнь 2026",
+    ranked: [{"platform": "yandex", "cost": 11908832.79, "impr": 71447088.0, "clicks": 343024.0, "conversions": 83, "bounce": 27.19, "timeOnSite": 169.8}, {"platform": "mts", "cost": 2513057.07, "impr": 14086400.0, "clicks": 170069.0, "conversions": 23, "bounce": 26.89, "timeOnSite": 123.8}, {"platform": "ozon", "cost": 2391284.85, "impr": 10588112.0, "clicks": 11035.0, "conversions": 20, "bounce": 48.86, "timeOnSite": 104.0}, {"platform": "avito", "cost": 2297132.94, "impr": 6186380.0, "clicks": 13391.0, "conversions": 1, "bounce": 36.09, "timeOnSite": 72.7}, {"platform": "tbank", "cost": 2212350.0, "impr": 2150000.0, "clicks": 12264.0, "conversions": 1, "bounce": 48.2, "timeOnSite": 121.0}, {"platform": "rutube", "cost": 2107915.02, "impr": 8289820.0, "clicks": 47187.0, "conversions": 1, "bounce": 61.9, "timeOnSite": 82.0}, {"platform": "yandexmarket", "cost": 1789882.68, "impr": 4429920.0, "clicks": 11301.0, "conversions": 6, "bounce": 43.55, "timeOnSite": 125.0}, {"platform": "plazkart", "cost": 900140.19, "impr": 2159262.0, "clicks": 15351.0, "conversions": 8, "bounce": 52.79, "timeOnSite": 98.0}, {"platform": "roxot", "cost": 639586.73, "impr": 7194004.0, "clicks": 16505.0, "conversions": 2, "bounce": 22.11, "timeOnSite": 120.0}, {"platform": "qbid", "cost": 435516.0, "impr": 2400000.0, "clicks": 33771.0, "conversions": 1, "bounce": 28.29, "timeOnSite": 80.6}, {"platform": "adheads", "cost": 360671.66, "impr": 1746596.0, "clicks": 10924.0, "conversions": 21, "bounce": 38.48, "timeOnSite": 118.1}, {"platform": "pass24", "cost": 151890.0, "impr": 261727.0, "clicks": 1606.0, "conversions": 1, "bounce": 56.12, "timeOnSite": 76.0}],
+    spendOnly: [{"platform": "adspector", "cost": 2444516.31}, {"platform": "yandex_go", "cost": 1842069.0}, {"platform": "vk_ads", "cost": 1181501.94}, {"platform": "buzzoola", "cost": 1127624.2}, {"platform": "astralab", "cost": 781270.92}, {"platform": "aviasales", "cost": 706527.45}, {"platform": "solta", "cost": 703754.96}, {"platform": "q.bid_olv", "cost": 507526.03}, {"platform": "targetads_(прямой,_без_ндс)", "cost": 407233.91}, {"platform": "дзен_статьи", "cost": 301018.76}, {"platform": "avito_olv", "cost": 284619.51}, {"platform": "2gis", "cost": 225635.69}, {"platform": "мтс", "cost": 222136.62}, {"platform": "vk_ads_сообщество", "cost": 140454.14}, {"platform": "дзен_сообщество", "cost": 133287.61}, {"platform": "targetads_(прямой,_без_ндс)_-_видео-код", "cost": 35220.83}, {"platform": "targetads_(прямой,_без_ндс)_-_js-трекинг", "cost": 14146.73}],
+    dealsOnly: [{"platform": "cian", "deals": 62}, {"platform": "novostroy-m", "deals": 33}, {"platform": "novostroy-gid", "deals": 8}, {"platform": "move", "deals": 6}, {"platform": "mobidriven", "deals": 6}, {"platform": "mskguru", "deals": 5}, {"platform": "pronovostroiki", "deals": 5}, {"platform": "dv360", "deals": 5}, {"platform": "irn", "deals": 4}, {"platform": "byyd", "deals": 3}, {"platform": "realty_tgb", "deals": 2}, {"platform": "rbc", "deals": 2}, {"platform": "sbol", "deals": 2}, {"platform": "getintent", "deals": 2}, {"platform": "mosdom", "deals": 2}, {"platform": "yandex_небоскреб_регионы", "deals": 2}, {"platform": "arendator", "deals": 1}, {"platform": "russianrealty", "deals": 1}, {"platform": "медийка", "deals": 1}, {"platform": "smarttv", "deals": 1}, {"platform": "realestate", "deals": 1}, {"platform": "beeline", "deals": 1}, {"platform": "womensnetwork", "deals": 1}, {"platform": "ivi", "deals": 1}, {"platform": "cre", "deals": 1}, {"platform": "avaho", "deals": 1}, {"platform": "restate", "deals": 1}, {"platform": "criteo", "deals": 1}, {"platform": "sberseller", "deals": 1}, {"platform": "onetarget", "deals": 1}, {"platform": "mirkvartir", "deals": 1}, {"platform": "медийка_2gis", "deals": 1}, {"platform": "mediatoday", "deals": 1}, {"platform": "yandex_rtb", "deals": 1}, {"platform": "wildberries", "deals": 1}, {"platform": "hyper", "deals": 1}, {"platform": "between", "deals": 1}, {"platform": "rutube_media_network", "deals": 1}, {"platform": "alfabank", "deals": 1}, {"platform": "iclicks", "deals": 1}, {"platform": "mirkvartir_регионы", "deals": 1}, {"platform": "youtube", "deals": 1}]
+  },
+  jul2026: {
+    label: "июль 2026",
+    ranked: [{"platform": "yandex", "cost": 11179801.3, "impr": 52130857.0, "clicks": 295615.0, "conversions": 72, "bounce": 31.49, "timeOnSite": 158.9}, {"platform": "mts", "cost": 5480630.78, "impr": 27937322.0, "clicks": 351780.0, "conversions": 22, "bounce": 31.45, "timeOnSite": 95.1}, {"platform": "ozon", "cost": 4083227.94, "impr": 13385686.0, "clicks": 11196.0, "conversions": 11, "bounce": 42.25, "timeOnSite": 133.0}, {"platform": "yandexmarket", "cost": 2011445.19, "impr": 5058425.0, "clicks": 10918.0, "conversions": 3, "bounce": 42.83, "timeOnSite": 141.0}, {"platform": "avito", "cost": 1661984.53, "impr": 4767668.0, "clicks": 9594.0, "conversions": 1, "bounce": 33.33, "timeOnSite": 148.0}, {"platform": "rutube", "cost": 1109927.02, "impr": 3679742.0, "clicks": 42975.0, "conversions": 2, "bounce": 64.9, "timeOnSite": 71.0}, {"platform": "adheads", "cost": 547780.59, "impr": 1674128.0, "clicks": 10614.0, "conversions": 18, "bounce": 29.85, "timeOnSite": 125.8}, {"platform": "mobidriven", "cost": 367879.04, "impr": 3419070.0, "clicks": 5912.0, "conversions": 2, "bounce": 49.98, "timeOnSite": 81.0}, {"platform": "wildberries", "cost": 367830.0, "impr": 8338268.0, "clicks": 10275.0, "conversions": 1, "bounce": 45.25, "timeOnSite": 95.0}],
+    spendOnly: [{"platform": "yandex_go", "cost": 2163350.94}, {"platform": "astralab", "cost": 1964212.08}, {"platform": "roxot", "cost": 1307435.37}, {"platform": "buzzoola", "cost": 1121780.96}, {"platform": "aviasales", "cost": 844520.21}, {"platform": "pyaterochka", "cost": 631901.29}, {"platform": "tbank", "cost": 613663.05}, {"platform": "avito_olv", "cost": 596280.88}, {"platform": "innovation_lab", "cost": 493505.25}, {"platform": "adspector", "cost": 486516.48}, {"platform": "targetads", "cost": 421283.4}, {"platform": "vox", "cost": 367826.43}, {"platform": "astralab_video", "cost": 307125.79}, {"platform": "дзен_статьи", "cost": 304157.37}, {"platform": "мтс", "cost": 235227.29}, {"platform": "2gis", "cost": 225635.57}, {"platform": "qbid_video", "cost": 181462.8}, {"platform": "qbid_banner", "cost": 138610.65}, {"platform": "дзен_сообщество", "cost": 132385.1}, {"platform": "marketcall", "cost": 109582.69}, {"platform": "amberdata", "cost": 47738.77}],
+    dealsOnly: [{"platform": "cian", "deals": 37}, {"platform": "novostroy-m", "deals": 17}, {"platform": "move", "deals": 11}, {"platform": "mskguru", "deals": 9}, {"platform": "pronovostroiki", "deals": 8}, {"platform": "onetarget", "deals": 4}, {"platform": "gdeetotdom", "deals": 3}, {"platform": "novostroy-gid", "deals": 3}, {"platform": "irn", "deals": 3}, {"platform": "cre", "deals": 2}, {"platform": "qbid", "deals": 1}, {"platform": "reforum", "deals": 1}, {"platform": "hyper", "deals": 1}, {"platform": "byyd", "deals": 1}, {"platform": "beeline", "deals": 1}, {"platform": "slickjump", "deals": 1}, {"platform": "turbotarget", "deals": 1}, {"platform": "rutube_media_network", "deals": 1}, {"platform": "netmonet", "deals": 1}, {"platform": "alfabank", "deals": 1}, {"platform": "youtube", "deals": 1}, {"platform": "mirkvartir_регионы", "deals": 1}]
+  },
+};
 
-// есть расход в этом файле, но 0 сделок в BI за август — риск слитого бюджета либо
-// эффект отложенной атрибуции (сделка ещё не закрылась)
-const SPEND_ONLY = [
-  { platform: "astralab", cost: 3001029.94 }, { platform: "yandex_go", cost: 2201333.95 },
-  { platform: "avito", cost: 2034887.09 }, { platform: "yandexmarket", cost: 1478239.97 },
-  { platform: "adspector", cost: 1364223.18 }, { platform: "buzzoola", cost: 1232829.76 },
-  { platform: "wildberries", cost: 718378.02 }, { platform: "digital_alliance", cost: 699857.88 },
-  { platform: "pyaterochka", cost: 673749.25 }, { platform: "rutube", cost: 579332.25 },
-  { platform: "roxot", cost: 560992.21 }, { platform: "soloway", cost: 401609.05 },
-  { platform: "first_data", cost: 367830.23 }, { platform: "vk_ads", cost: 367771.14 },
-  { platform: "vox", cost: 363337.27 }, { platform: "innovation_lab", cost: 270910.98 },
-  { platform: "2gis", cost: 225635.57 }, { platform: "marketcall", cost: 183915.0 },
-  { platform: "smi2", cost: 182995.42 }, { platform: "tiburon", cost: 49044.0 },
-  { platform: "amberdata", cost: 42082.03 },
-];
+const MONTH_ORDER = ["may2026", "jun2026", "jul2026", "aug2026"];
+let currentMonth = "aug2026";
 
-// есть сделки в BI, но расход на эти площадки не найден в файле "Ежемесячная статистика MI // Level" —
-// вероятно, ведутся в другом бюджетном документе (прямые размещения на порталах)
-const DEALS_ONLY = [
-  { platform: "cian", deals: 32 }, { platform: "novostroy-m", deals: 9 },
-  { platform: "pronovostroiki", deals: 6 }, { platform: "move", deals: 5 },
-  { platform: "mskguru", deals: 5 }, { platform: "rbc", deals: 3 },
-  { platform: "irn", deals: 2 }, { platform: "gdeetotdom", deals: 2 },
-  { platform: "mobidriven", deals: 2 }, { platform: "novostroy-gid", deals: 2 },
-  { platform: "turbotarget", deals: 1 }, { platform: "getintent", deals: 1 },
-  { platform: "slickjump", deals: 1 }, { platform: "novostroy-city", deals: 1 },
-  { platform: "dcreo", deals: 1 }, { platform: "onetarget", deals: 1 },
-  { platform: "thecottage", deals: 1 }, { platform: "qbid", deals: 1 },
-  { platform: "aviasales", deals: 1 },
-];
+let PLATFORMS = MONTHS[currentMonth].ranked;
+let SPEND_ONLY = MONTHS[currentMonth].spendOnly;
+let DEALS_ONLY = MONTHS[currentMonth].dealsOnly;
 
-const PLATFORMS = RANKED;
+function renderMonthTabs(){
+  const box = document.getElementById('month-tabs');
+  box.innerHTML = MONTH_ORDER.map(k => `
+    <button data-month="${k}" class="${k===currentMonth ? 'active' : ''}">${MONTHS[k].label}</button>
+  `).join('');
+  box.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => selectMonth(btn.dataset.month));
+  });
+}
+
+function selectMonth(key){
+  currentMonth = key;
+  PLATFORMS = MONTHS[key].ranked;
+  SPEND_ONLY = MONTHS[key].spendOnly;
+  DEALS_ONLY = MONTHS[key].dealsOnly;
+  document.getElementById('period-label').textContent = 'реальные данные · ' + MONTHS[key].label.replace('20', '');
+  renderMonthTabs();
+  render();
+}
 
 function derive(rows){
   return rows.map(r => ({
@@ -389,8 +414,8 @@ function computeScores(){
 
   const cpaNorm = normalize(data, 'cpa', true);
   const cpmNorm = normalize(data, 'cpm', true);
-  const bounceNorm = normalize(data, 'bounce', true); // ниже отказы — лучше
-  const timeNorm = normalize(data, 'timeOnSite', false); // больше время на сайте — лучше
+  const bounceNorm = normalize(data, 'bounce', true);
+  const timeNorm = normalize(data, 'timeOnSite', false);
   const cpmMed = median(data.map(r=>r.cpm));
 
   const scored = data.map((r, i) => {
@@ -507,5 +532,6 @@ document.querySelectorAll('.presets button').forEach(btn => {
   btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
 });
 
+renderMonthTabs();
 render();
 </script>
