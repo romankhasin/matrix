@@ -1,0 +1,127 @@
+platform,visits,bounce_rate,avg_time_on_site_sec,page_depth,raw_utm_sources
+yandex,461519,32.7,165.1,1.47,commerce:promopages; commerce:yandex; commerce:yandex.promopages; commerce:yandex_maps; commerce:yandex_mapss; zhk:dzen; zhk:promopages; zhk:yandex; zhk:yandex-pogoda; zhk:yandex.promopages; zhk:yandex_apartments; zhk:yandex_appartments; zhk:yandex_maps; zhk:yandexsmartcamera
+mts,330234,30.54,97.6,1.3,commerce:mts; zhk:mts
+unmapped,250979,26.61,279.2,2.91,commerce:Не определено; zhk:Не определено
+adspector,86874,20.74,100.9,1.36,commerce:adspector; zhk:adspector
+buzzoola,35534,30.0,95.0,2.02,zhk:buzzoola
+astralab,31131,30.55,99.4,1.29,commerce:astralab; zhk:astralab
+rpl-sportbox,19680,79.74,27.0,1.03,zhk:rpl-sportbox
+move,18788,70.09,105.0,1.02,zhk:move
+t-invest,17304,54.82,45.0,1.07,commerce:t-invest
+da,14531,47.23,67.0,1.18,zhk:da
+rutube,13774,64.91,72.0,1.05,zhk:rutube
+wildberries,12852,43.26,100.0,1.29,zhk:wildberries
+yandex_go,12201,45.98,110.0,1.16,zhk:yandex_go; zhk:yandexgo
+adheads,10119,33.63,69.1,1.42,commerce:adheads; zhk:adheads
+cian,9805,39.36,131.0,1.73,zhk:cian
+avito-ads,9068,34.27,86.0,1.33,zhk:avito-ads
+newsletter,8490,13.41,342.8,2.88,commerce:newsletter; zhk:newsletter
+realty,8272,34.9,130.0,1.11,zhk:realty
+inlab,8269,26.36,55.0,1.3,zhk:inlab
+tbank,8074,50.92,102.0,1.31,zhk:tbank
+novostroy-m,7407,33.52,124.0,1.31,zhk:novostroy_m
+yandexmarket,6657,46.7,129.0,1.65,commerce:yandexmarket; zhk:yandexmarket
+roxot,6549,42.24,60.0,1.48,zhk:roxot
+streamingads,6287,56.13,73.0,1.03,zhk:streamingads
+ozon,5894,43.16,129.0,1.42,zhk:ozon
+rpl-matchtv,5165,70.71,43.0,1.02,zhk:rpl-matchtv
+soloway,4686,51.58,86.0,1.41,commerce:soloway
+test,3696,89.29,18.3,1.04,commerce:test; zhk:test
+smi2,3557,44.03,70.0,1.15,commerce:smi2
+sms_newsletter,3171,13.78,260.0,2.78,zhk:sms_newsletter
+vox,3095,30.37,132.0,1.19,commerce:voxexchange
+first_data,2809,45.53,80.0,1.11,commerce:first-data
+ya,2785,24.67,269.3,2.77,commerce:ya; zhk:ya
+trigger,2611,20.11,269.0,2.53,zhk:trigger
+roomfi,2523,3.41,119.0,1.59,commerce:roomfi
+arendator,2283,33.82,50.0,1.27,commerce:arendator
+alfabank,1627,48.31,81.3,1.12,commerce:alfabank; zhk:alfabank
+novostroy_spb,1159,8.63,236.0,1.22,zhk:novostroy_spb
+telegram,1099,18.56,221.2,2.58,commerce:telegram; zhk:telegram
+pyaterochka,1086,37.48,100.0,1.59,zhk:pyaterochka
+2gis,521,19.0,486.5,3.94,commerce:2gis_maps; zhk:2gis_maps
+googlemybusiness,412,16.99,379.0,4.04,zhk:googlemybusiness
+chatgpt.com,398,12.32,384.8,3.17,commerce:chatgpt.com; zhk:chatgpt.com
+ya_apartments,282,2.48,444.0,3.93,zhk:ya_apartments
+corp,224,4.91,460.0,5.56,zhk:corp
+pikabu,168,99.4,0.5,1.01,zhk:pikabu
+max,136,11.03,482.0,5.28,zhk:max
+ya_maps,133,10.53,386.6,4.08,commerce:ya_maps; zhk:ya_maps
+polygraphy,129,19.38,467.6,2.95,commerce:polygraphy; zhk:polygraphy
+plazkart,84,22.62,144.0,1.02,zhk:plazkart
+poligraphy,45,20.0,417.0,4.2,zhk:poligraphy
+redlama,44,34.09,228.0,1.0,commerce:redlama; zhk:redlama
+pr_media,40,35.0,225.0,2.3,zhk:pr_media
+sms_trigger,37,37.84,208.0,2.16,zhk:sms_trigger
+byyd,36,27.78,94.0,1.0,zhk:byyd
+cian_kartochka_zhk,35,20.0,136.0,2.14,zhk:cian_kartochka_zhk
+youtube,35,71.43,77.0,1.54,zhk:youtube
+pr_telegram,33,12.12,229.0,2.64,zhk:pr_telegram
+vk,32,18.75,182.0,2.31,zhk:vk
+mskguru,31,19.35,287.0,2.06,zhk:mskguru
+novostroy-gid,31,9.68,875.0,1.23,zhk:novostroy-gid
+cbyvtebcul,29,3.45,37.0,1.0,zhk:cbyvtebcul
+vkontakte,29,3.45,598.0,8.14,zhk:vkontakte
+stroyka,28,32.14,180.0,1.61,zhk:stroyka
+qbid,27,22.22,53.6,1.08,commerce:qbid; zhk:qbid
+vkvideo,21,23.81,168.0,1.05,zhk:vkvideo
+mobidriven,20,65.0,39.7,1.1,commerce:mobidriven; zhk:mobidriven
+ig,18,33.33,323.0,2.33,zhk:ig
+yandex_rtb,18,27.78,43.0,1.0,zhk:yd_rtb
+pronovostroiki,18,44.45,56.2,1.83,zhk:pronovostroiki; zhk:pronovostroy
+google,14,57.14,30.0,1.0,zhk:google
+aviasales,13,15.38,180.0,2.38,zhk:aviasales
+metro,13,15.38,1192.0,8.62,zhk:metro
+fitness_centers,12,0.0,584.0,1.92,zhk:fitness_centers
+cre,11,18.18,246.0,2.82,commerce:cre
+geoadv_maps,10,0.0,134.0,3.4,zhk:geoadv_maps
+insta,10,10.0,164.0,1.8,zhk:insta
+solta,10,0.0,158.8,1.2,commerce:solta; zhk:solta
+parking,9,11.11,247.0,1.11,zhk:parking
+welcome,8,50.0,90.0,1.5,zhk:welcome
+spbguru,7,14.29,287.0,3.0,zhk:spbguru
+vyborshik-site,7,28.57,266.0,5.86,zhk:vyborshik-site
+hyper_ad_tech,6,0.0,20.0,1.0,zhk:hyper_ad_tech
+planbook,6,0.0,443.0,3.33,zhk:planbook
+plate,6,16.67,463.0,2.5,zhk:plate
+sms,6,16.67,123.0,2.0,zhk:sms
+uznai.mos.ru,6,0.0,460.0,9.67,zhk:uznai.mos.ru
+perplexity,6,33.33,46.7,1.33,commerce:perplexity; zhk:perplexity
+tg,5,40.0,57.0,1.2,zhk:tg
+yandex_eda,5,60.0,29.0,1.0,zhk:yandex_eda
+zabor,5,40.0,150.0,1.2,zhk:zabor
+hyper,5,20.0,69.0,1.0,commerce:hyper; zhk:hyper
+office,4,0.0,1152.0,2.75,zhk:office
+sberseller,4,25.0,59.0,1.0,zhk:sberseller
+smm,4,0.0,167.0,3.75,zhk:smm
+youtube_blog,4,100.0,0.0,1.0,zhk:youtube_blog
+ai_chat,3,33.33,24.0,1.67,zhk:ai_chat
+domyland,3,33.33,764.0,3.67,zhk:domyland
+dropagent.ru,3,33.33,964.0,10.67,zhk:dropagent.ru
+ivi,3,0.0,99.0,1.67,zhk:ivi
+novostroy_ru,3,0.0,954.0,10.67,zhk:novostroy_ru
+perekrestok,3,33.33,197.0,1.0,zhk:perekrestok
+rmn,3,66.67,18.0,1.0,zhk:rmn
+vk_ads,3,33.33,559.0,1.0,zhk:vk_ads
+ya_appartments,3,0.0,99.0,1.67,zhk:ya_appartments
+beeline,2,50.0,668.0,1.0,zhk:beeline
+mskguru.ru,2,0.0,473.0,5.0,zhk:mskguru.ru
+netmonet,2,0.0,167.0,3.5,zhk:netmonet
+sp_perfluence,2,100.0,12.0,1.0,zhk:sp_perfluence
+stroiki,2,100.0,0.0,1.0,zhk:stroiki
+zalo,2,50.0,8.0,1.0,zhk:zalo
+avito,2,0.0,15.5,1.0,commerce:avito; zhk:avito
+yandex_dostavka,2,0.0,62.0,2.0,commerce:yandex_dostavka
+dubgtcg.dbz,1,0.0,35.0,1.0,zhk:dubgtcg.dbz
+gpmh,1,0.0,187.0,1.0,zhk:gpmh
+m2data,1,0.0,2402.0,3.0,zhk:m2data
+metry.ru,1,0.0,42.0,3.0,zhk:metry.ru
+onetarget,1,0.0,8.0,1.0,zhk:onetarget
+samokat,1,0.0,61.0,1.0,zhk:samokat
+unisound,1,0.0,52.0,2.0,zhk:unisound
+wink,1,100.0,0.0,1.0,zhk:wink
+yard-msk.ru,1,0.0,18.0,1.0,zhk:yard-msk.ru
+aeroflot_premium,1,0.0,1050.0,1.0,commerce:aeroflot_premium
+restate,1,0.0,29.0,2.0,commerce:restate
+roden,1,0.0,15.0,1.0,commerce:roden
+smartlab,1,0.0,190.0,1.0,commerce:smartlab
