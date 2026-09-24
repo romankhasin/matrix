@@ -51,7 +51,7 @@
     color:var(--text);
     font-family:var(--font-body);
     padding:28px 20px 60px;
-    max-width:1180px;
+    max-width:1480px;
     margin:0 auto;
   }
   h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0;}
@@ -73,7 +73,7 @@
     padding:8px 12px; white-space:nowrap;
   }
 
-  .layout{display:grid; grid-template-columns: 300px 1fr; gap:20px;}
+  .layout{display:grid; grid-template-columns: 300px minmax(0,1fr); gap:20px; align-items:start;}
   @media (max-width:820px){ .layout{grid-template-columns:1fr;} }
 
   .panel{
@@ -134,41 +134,64 @@
   }
   .conv-note b{color:var(--text-dim); font-weight:500;}
 
-  /* ranked list */
-  .rank-item{
-    background:var(--surface); border:1px solid var(--line); border-radius:14px;
-    padding:16px 18px; margin-bottom:10px;
-    display:grid; grid-template-columns: 34px 1fr auto; gap:16px; align-items:center;
+  /* ranking table */
+  .table-panel{padding:0; overflow:hidden;}
+  .table-head{
+    display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap;
+    padding:14px 18px; border-bottom:1px solid var(--line);
   }
-  .rank-item.top{border-color:var(--accent);}
-  .rank-num{
-    font-family:var(--font-mono); font-size:18px; color:var(--text-faint); text-align:center;
+  .table-head h2{font-size:15px;}
+  .table-head .hint{font-size:12px; color:var(--text-faint);}
+  .table-scroll{overflow:auto; max-height:min(76vh, 900px);}
+  table.rank{
+    width:100%; border-collapse:separate; border-spacing:0; font-size:13px;
+    font-variant-numeric:tabular-nums;
   }
-  .rank-item.top .rank-num{color:var(--accent);}
-  .rank-main{min-width:0;}
-  .rank-title-row{display:flex; align-items:baseline; gap:10px; margin-bottom:8px; flex-wrap:wrap;}
-  .platform-name{font-size:16px; font-weight:600;}
-  .campaign-name{font-size:12px; color:var(--text-faint);}
-  .score-bar-track{
-    height:6px; background:var(--surface-2); border-radius:3px; overflow:hidden; margin-bottom:10px;
+  table.rank th, table.rank td{
+    padding:9px 9px; border-bottom:1px solid var(--line); white-space:nowrap; text-align:right;
   }
-  .score-bar-fill{height:100%; background:linear-gradient(90deg, var(--teal), var(--accent)); border-radius:3px;}
-  .metric-row{
-    display:flex; gap:18px; flex-wrap:wrap; font-size:12px; color:var(--text-dim);
+  table.rank th:first-child, table.rank td:first-child{text-align:center; width:44px; padding-left:14px;}
+  table.rank th.col-name, table.rank td.col-name{text-align:left;}
+  table.rank thead th{
+    position:sticky; top:0; z-index:3; background:var(--surface-2);
+    font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--text-dim); border-bottom:1px solid var(--text-faint);
+    cursor:pointer; user-select:none;
   }
-  .metric-row .m{display:flex; gap:5px; align-items:baseline;}
-  .metric-row .m .v{font-family:var(--font-mono); color:var(--text); font-size:12.5px;}
-  .metric-row .m .lbl{color:var(--text-faint);}
-  .flag-good{color:var(--good);}
-  .flag-bad{color:var(--bad);}
-  .score-col{text-align:right;}
-  .score-value{font-family:var(--font-mono); font-size:26px; font-weight:600; color:var(--accent); line-height:1;}
-  .score-unit{font-size:11px; color:var(--text-faint); margin-top:2px;}
-
-  @media (max-width:560px){
-    .rank-item{grid-template-columns: 26px 1fr; grid-template-rows:auto auto;}
-    .score-col{grid-column:1/-1; text-align:left; margin-top:6px; display:flex; align-items:baseline; gap:8px;}
+  table.rank thead th:hover{color:var(--text);}
+  table.rank thead th.sorted{color:var(--accent);}
+  table.rank thead th .arr{
+    display:inline-block; width:10px; margin-left:4px; font-size:10px; color:var(--text-faint);
   }
+  table.rank thead th.sorted .arr{color:var(--accent);}
+  table.rank thead th:not(.sorted) .arr{opacity:0;}
+  table.rank thead th:not(.sorted):hover .arr{opacity:.6;}
+  table.rank thead th.no-sort{cursor:default;}
+  table.rank thead th.no-sort:hover{color:var(--text-dim);}
+  table.rank td.col-name{
+    position:sticky; left:0; z-index:2; background:var(--surface);
+    font-weight:600; font-family:var(--font-body);
+  }
+  table.rank thead th.col-name{left:0; z-index:4;}
+  table.rank tbody tr:hover td{background:var(--surface-2);}
+  table.rank tbody tr:hover td.col-name{background:var(--surface-2);}
+  table.rank td.rk{color:var(--text-faint); font-family:var(--font-mono);}
+  table.rank tbody tr.top td.rk{color:var(--accent); font-weight:600;}
+  table.rank td.mono{font-family:var(--font-mono); font-size:12.5px;}
+  table.rank td.score-cell{min-width:130px; text-align:right;}
+  .score-wrap{display:flex; align-items:center; gap:10px; justify-content:flex-end;}
+  .score-bar-track{flex:1; min-width:40px; height:6px; background:var(--surface-2); border-radius:3px; overflow:hidden; border:1px solid var(--line);}
+  .score-bar-fill{height:100%; background:linear-gradient(90deg, var(--teal), var(--accent));}
+  .score-num{font-family:var(--font-mono); font-weight:600; color:var(--accent); min-width:38px; text-align:right;}
+  table.rank tfoot td{
+    position:sticky; bottom:0; z-index:2; background:var(--surface-2);
+    border-top:1px solid var(--text-faint); border-bottom:none;
+    font-weight:600; font-family:var(--font-mono); font-size:12.5px;
+  }
+  table.rank tfoot td.col-name{z-index:3; font-family:var(--font-body);}
+  /* heat tints: good = teal/green, bad = red, strength via --t (0..1) */
+  td.heat-good{background:color-mix(in srgb, var(--good) calc(var(--t) * 22%), transparent);}
+  td.heat-bad{background:color-mix(in srgb, var(--bad) calc(var(--t) * 22%), transparent);}
 
   .legend{
     display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:var(--text-faint);
@@ -391,13 +414,25 @@
   </aside>
 
   <main>
-    <div id="rank-list"></div>
+    <div class="panel table-panel">
+      <div class="table-head">
+        <h2>Рейтинг площадок</h2>
+        <span class="hint" id="table-hint">Клик по заголовку — сортировка: повторный клик меняет направление, третий возвращает к Score</span>
+      </div>
+      <div class="table-scroll">
+        <table class="rank" id="rank-table">
+          <thead id="rank-thead"></thead>
+          <tbody id="rank-tbody"></tbody>
+          <tfoot id="rank-tfoot"></tfoot>
+        </table>
+      </div>
+    </div>
 
     <div class="panel">
-      <div class="legend">
-        <span><span class="dot" style="background:var(--good)"></span>лучше медианы по CPM среди ранжируемых</span>
-        <span><span class="dot" style="background:var(--bad)"></span>хуже медианы по CPM среди ранжируемых</span>
-        <span>Score = взвешенная сумма нормализованных CPA, постклика (отказы + время на сайте) и CPM (0–100).</span>
+      <div class="legend" style="margin-top:0; padding-top:0; border-top:none">
+        <span><span class="dot" style="background:var(--good)"></span>ячейка зеленее — показатель лучше среди ранжируемых</span>
+        <span><span class="dot" style="background:var(--bad)"></span>краснее — хуже (для CPA, CPM, отказов «лучше» = меньше; для остальных — больше)</span>
+        <span>№ — место по Score, не зависит от сортировки. Score = взвешенная сумма нормализованных CPA, постклика (отказы + время на сайте) и CPM (0–100).</span>
       </div>
     </div>
   </main>
@@ -649,38 +684,132 @@ function render(){
   totalEl.textContent = total + '%';
   document.getElementById('weights-sum').classList.toggle('balanced', total === 100);
 
-  const scored = computeScores();
-  const maxScore = Math.max(...scored.map(r=>r.score), 1);
-
-  const list = document.getElementById('rank-list');
-  list.innerHTML = scored.map((r, i) => `
-    <div class="rank-item ${i===0 ? 'top' : ''}">
-      <div class="rank-num mono">${i+1}</div>
-      <div class="rank-main">
-        <div class="rank-title-row">
-          <span class="platform-name">${name(r.platform)}</span>
-        </div>
-        <div class="score-bar-track">
-          <div class="score-bar-fill" style="width:${(r.score/maxScore*100).toFixed(1)}%"></div>
-        </div>
-        <div class="metric-row">
-          <span class="m"><span class="lbl">CPA</span><span class="v">${Number.isFinite(r.cpa) ? fmt(r.cpa) + ' ₽' : '—'}</span></span>
-          <span class="m"><span class="lbl">CPM</span><span class="v ${r.cpmGood ? 'flag-good' : 'flag-bad'}">${fmt(r.cpm)} ₽</span></span>
-          <span class="m"><span class="lbl">Сделки BI</span><span class="v">${r.conversions}</span></span>
-          <span class="m"><span class="lbl">Расход</span><span class="v">${fmt(r.cost)} ₽</span></span>
-          <span class="m"><span class="lbl">Отказы</span><span class="v">${fmt(r.bounce,1)}%</span></span>
-          <span class="m"><span class="lbl">Время на сайте</span><span class="v">${Math.floor(r.timeOnSite/60)} м ${Math.round(r.timeOnSite%60)} с</span></span>
-        </div>
-      </div>
-      <div class="score-col">
-        <div class="score-value mono">${fmt(r.score,1)}</div>
-        <div class="score-unit">score / 100</div>
-      </div>
-    </div>
-  `).join('');
-
+  SCORED = computeScores();
+  SCORED.forEach((r, i) => { r.rank = i + 1; });
+  renderTable();
   renderSideLists();
 }
+
+// ---- таблица рейтинга: колонки, сортировка, тепловая подсветка ----
+const fmtTime = sec => Math.floor(sec/60) + ':' + String(Math.round(sec%60)).padStart(2,'0');
+const fmtRub = v => Number.isFinite(v) ? fmt(v) : '—';
+
+// dir: какое направление считается «лучше» (для тепловой подсветки): 'low' — меньше лучше, 'high' — больше лучше
+const COLUMNS = [
+  { key:'score',      label:'Score',       first:'desc', dir:'high', cls:'score-cell' },
+  { key:'cpa',        label:'CPA, ₽',      first:'asc',  dir:'low',  mono:true, fmt: fmtRub },
+  { key:'cpm',        label:'CPM, ₽',      first:'asc',  dir:'low',  mono:true, fmt: fmtRub },
+  { key:'conversions',label:'Сделки',      first:'desc', dir:'high', mono:true, fmt: v => fmt(v) },
+  { key:'cost',       label:'Расход, ₽',   first:'desc',            mono:true, fmt: v => fmt(v) },
+  { key:'impr',       label:'Показы',      first:'desc',            mono:true, fmt: v => fmt(v) },
+  { key:'clicks',     label:'Клики',       first:'desc',            mono:true, fmt: v => fmt(v) },
+  { key:'ctr',        label:'CTR, %',      first:'desc', dir:'high', mono:true, fmt: v => fmt(v,2) },
+  { key:'bounce',     label:'Отказы, %',   first:'asc',  dir:'low',  mono:true, fmt: v => fmt(v,1) },
+  { key:'timeOnSite', label:'Время на сайте', first:'desc', dir:'high', mono:true, fmt: fmtTime },
+];
+
+let SCORED = [];
+// sort.key === null → порядок по Score (по умолчанию)
+let sortState = { key:'score', dir:'desc' };
+
+function cycleSort(col){
+  if (sortState.key !== col.key){
+    sortState = { key: col.key, dir: col.first };
+  } else if (sortState.dir === col.first){
+    sortState = { key: col.key, dir: col.first === 'asc' ? 'desc' : 'asc' };
+  } else {
+    sortState = { key:'score', dir:'desc' };
+  }
+  renderTable();
+}
+
+function sortedRows(){
+  const { key, dir } = sortState;
+  const m = dir === 'asc' ? 1 : -1;
+  if (key === 'platform'){
+    return [...SCORED].sort((a,b) => name(a.platform).localeCompare(name(b.platform), 'ru') * m);
+  }
+  return [...SCORED].sort((a,b) => {
+    const av = a[key], bv = b[key];
+    const aOk = Number.isFinite(av), bOk = Number.isFinite(bv);
+    if (!aOk || !bOk) return aOk === bOk ? 0 : (aOk ? -1 : 1); // пустые значения всегда внизу
+    return (av - bv) * m || a.rank - b.rank;
+  });
+}
+
+function renderTable(){
+  SCORED.forEach(r => { r.ctr = r.impr > 0 ? r.clicks / r.impr * 100 : NaN; });
+  const rows = sortedRows();
+  const maxScore = Math.max(...SCORED.map(r => r.score), 1);
+
+  // min/max по колонкам — для подсветки
+  const ranges = {};
+  COLUMNS.forEach(c => {
+    if (!c.dir) return;
+    const vals = SCORED.map(r => r[c.key]).filter(Number.isFinite);
+    ranges[c.key] = [Math.min(...vals), Math.max(...vals)];
+  });
+  const heat = (c, v) => {
+    if (!c.dir || c.key === 'score' || !Number.isFinite(v)) return '';
+    const [lo, hi] = ranges[c.key];
+    if (hi === lo) return '';
+    let q = (v - lo) / (hi - lo);            // 0..1, 1 = максимум
+    if (c.dir === 'low') q = 1 - q;          // 1 = лучший
+    const good = q >= .5;
+    const t = Math.abs(q - .5) * 2;          // 0 в середине, 1 на краях
+    return ` class="mono ${good ? 'heat-good' : 'heat-bad'}" style="--t:${t.toFixed(2)}"`;
+  };
+
+  const arrow = c => sortState.key === c.key ? (sortState.dir === 'asc' ? '▲' : '▼') : '↕';
+  document.getElementById('rank-thead').innerHTML = `<tr>
+    <th class="no-sort" title="Место по Score">№</th>
+    <th class="col-name ${sortState.key === 'platform' ? 'sorted' : ''}" data-key="platform">Площадка<span class="arr">${sortState.key === 'platform' ? (sortState.dir === 'asc' ? '▲' : '▼') : '↕'}</span></th>
+    ${COLUMNS.map(c => `<th data-key="${c.key}" class="${sortState.key === c.key ? 'sorted' : ''}">${c.label}<span class="arr">${arrow(c)}</span></th>`).join('')}
+  </tr>`;
+
+  document.getElementById('rank-tbody').innerHTML = rows.map(r => `
+    <tr class="${r.rank === 1 ? 'top' : ''}">
+      <td class="rk">${r.rank}</td>
+      <td class="col-name">${name(r.platform)}</td>
+      ${COLUMNS.map(c => {
+        if (c.key === 'score') return `<td class="score-cell"><div class="score-wrap">
+          <div class="score-bar-track"><div class="score-bar-fill" style="width:${(r.score/maxScore*100).toFixed(1)}%"></div></div>
+          <span class="score-num">${fmt(r.score,1)}</span></div></td>`;
+        const h = heat(c, r[c.key]);
+        return `<td${h || ' class="mono"'}>${c.fmt(r[c.key])}</td>`;
+      }).join('')}
+    </tr>`).join('');
+
+  // итого
+  const sum = k => SCORED.reduce((s, r) => s + r[k], 0);
+  const tCost = sum('cost'), tImpr = sum('impr'), tClicks = sum('clicks'), tConv = sum('conversions');
+  const wAvg = k => SCORED.reduce((s, r) => s + r[k] * r.clicks, 0) / (tClicks || 1);
+  const tot = {
+    cpa: tConv ? tCost / tConv : NaN, cpm: tImpr ? tCost / tImpr * 1000 : NaN, conversions: tConv,
+    cost: tCost, impr: tImpr, clicks: tClicks, ctr: tImpr ? tClicks / tImpr * 100 : NaN,
+    bounce: wAvg('bounce'), timeOnSite: wAvg('timeOnSite'),
+  };
+  document.getElementById('rank-tfoot').innerHTML = `<tr>
+    <td></td><td class="col-name">Итого / среднее (${SCORED.length})</td>
+    ${COLUMNS.map(c => c.key === 'score' ? '<td></td>' : `<td>${c.fmt(tot[c.key])}</td>`).join('')}
+  </tr>`;
+}
+
+document.getElementById('rank-thead').addEventListener('click', e => {
+  const th = e.target.closest('th[data-key]');
+  if (!th) return;
+  const key = th.dataset.key;
+  if (key === 'platform'){
+    // текст: сначала А→Я, затем Я→А, затем сброс
+    const st = sortState;
+    if (st.key !== 'platform') sortState = { key:'platform', dir:'asc' };
+    else if (st.dir === 'asc') sortState = { key:'platform', dir:'desc' };
+    else sortState = { key:'score', dir:'desc' };
+    renderTable();
+  } else {
+    cycleSort(COLUMNS.find(c => c.key === key));
+  }
+});
 
 const PRESETS = {
   balanced:  { cpa:45, postclick:30, cpm:25 },
