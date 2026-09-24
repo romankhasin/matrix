@@ -20,6 +20,7 @@ Usage:
         --conv-mayjul "<Свод_ПБА_май-июль_2026.xlsx>" --conv-aug "<Свод_конверсий BI_август_2026.xlsx>" \
         --spend ../data/spend_source.xlsx --metrika-dir ../data \
         --metrika-utm "<Метки UTM ЖК.csv>" "<Метки UTM Коммерция.csv>" \
+        --budget "<Бюджеты свод 25-26.xlsx>" \
         --out ../data/dashboard_data.json --inject ../dashboard/index.html ../docs/index.html
 """
 
@@ -54,6 +55,7 @@ TOKEN_BLOCK = {
     # комфорт
     "gvl": "comfort", "lmech-rspb": "comfort", "lmech": "comfort", "ng": "comfort",
     "sel": "comfort", "sp": "comfort",
+    "ln": "comfort", "ls": "comfort", "ls3": "comfort",  # Нагатинская, Стрешнево
     # комфорт+
     "zv": "comfortplus", "lm": "comfortplus",
     # делюкс
@@ -69,6 +71,14 @@ TOKEN_BLOCK = {
 NAME_BLOCK = {
     "причальный": "business", "мичуринский": "comfortplus", "волга-нн": "business",
     "саввинская 17": "deluxe", "саввинская 27": "deluxe",
+    "стрешнево": "comfort", "нагатинская": "comfort",
+}
+
+# опечатки и варианты написания проекта -> каноническое название
+PROJECT_ALIAS = {
+    "южнопоротовая": "южнопортовая",
+    "level group": "левел групп", "levelgroup": "левел групп",
+    "саввинские": "саввинская",
 }
 
 # колонка «Проект» в файле расходов -> блок
@@ -76,6 +86,7 @@ PROJECT_BLOCK = {
     "мичуринский": "comfortplus", "звенигородская": "comfortplus",
     "южнопортовая": "comfort", "лесной": "comfort", "мечникова": "comfort",
     "нижегородская": "comfort", "селигерская": "comfort",
+    "нагатинская": "comfort", "стрешнево": "comfort",
     "павелецкая сити": "business", "войковская": "business", "волга": "business",
     "академическая": "business", "бауманская": "business", "причальный": "business",
     "саввинская": "deluxe", "саввинская 17": "deluxe", "саввинская 27": "deluxe",
@@ -207,6 +218,63 @@ def load_spend(path, sheet):
     return out, unknown_projects
 
 
+RU_MONTHS = {"январь": 1, "февраль": 2, "март": 3, "апрель": 4, "май": 5, "июнь": 6,
+             "июль": 7, "август": 8, "сентябрь": 9, "октябрь": 10, "ноябрь": 11, "декабрь": 12}
+MONTH_SLUG = {1: "jan", 2: "feb", 3: "mar", 4: "apr", 5: "may", 6: "jun", 7: "jul", 8: "aug",
+              9: "sep", 10: "oct", 11: "nov", 12: "dec"}
+VAT = 1.2  # расход в бюджетном своде без НДС -> приводим к «с НДС»
+
+
+def to_num(v):
+    """Число из ячейки: '312300.00₽', '1 041 582', '134220,23', '-' -> float."""
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return float(v)
+    if v is None:
+        return 0.0
+    t = re.sub(r"[^\d,.\-]", "", str(v)).replace(",", ".")
+    try:
+        return float(t) if t not in ("", "-", ".") else 0.0
+    except ValueError:
+        return 0.0
+
+
+def load_budget(path, skip_keys=()):
+    """Бюджетный свод («Бюджеты свод 25-26»): листы «<Месяц> <год>», столбцы D/E/G = Расход/показы/клики.
+    Листы с другой раскладкой (недельные рабочие) пропускаются. Расход умножается на 1,2 (с НДС)."""
+    wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
+    out, unknown = {}, set()
+    for ws in wb.worksheets:
+        parts = ws.title.strip().lower().split()
+        if len(parts) != 2 or parts[0] not in RU_MONTHS or not parts[1].isdigit():
+            continue
+        month, year = RU_MONTHS[parts[0]], int(parts[1])
+        rows = list(ws.iter_rows(values_only=True))
+        h = [str(x).strip().lower() if x else "" for x in rows[0]]
+        if not (h[3] == "расход" and h[4] == "показы" and h[6] == "клики"):
+            raise SystemExit(f"Лист {ws.title!r}: в D/E/G не Расход/показы/клики: {h[3:7]}")
+        acc = defaultdict(lambda: [0.0, 0.0, 0.0])
+        for r in rows[1:]:
+            if r[0] is None or not str(r[0]).strip():
+                continue
+            project = str(r[0]).strip().lower()
+            project = PROJECT_ALIAS.get(project, project)
+            block = PROJECT_BLOCK.get(project)
+            if block is None:
+                unknown.add(str(r[0]).strip())
+                block = "none"
+            a = acc[(block, normalize_platform(str(r[2]).strip()))]
+            a[0] += to_num(r[3]) * VAT
+            a[1] += to_num(r[4])
+            a[2] += to_num(r[6])
+        key = f"{MONTH_SLUG[month]}{year}"
+        if key in skip_keys:
+            continue
+        out[key] = {"year": year, "month": month,
+                    "rows": [{"b": b, "p": p, "cost": round(v[0], 2), "impr": int(v[1]), "clicks": int(v[2]),
+                              "deal": 0, "meet": 0, "call": 0} for (b, p), v in sorted(acc.items())]}
+    return out, unknown
+
+
 def load_metrika(path):
     post = {}
     with open(path, encoding="utf-8") as f:
@@ -263,6 +331,7 @@ def main():
     ap.add_argument("--spend", required=True)
     ap.add_argument("--metrika-dir", required=True)
     ap.add_argument("--metrika-utm", nargs="*", default=[], help="выгрузки Метрики «Метки UTM» с UTM Campaign (оба счётчика)")
+    ap.add_argument("--budget", help="бюджетный свод за прошлые месяцы (Бюджеты свод 25-26.xlsx): только расход, показы, клики")
     ap.add_argument("--out", required=True)
     ap.add_argument("--inject", nargs="*", default=[])
     args = ap.parse_args()
@@ -284,11 +353,25 @@ def main():
         rows = [{"b": b, "p": p, "cost": round(v["cost"], 2), "impr": int(v["impr"]), "clicks": int(v["clicks"]),
                  "deal": v["deal"], "meet": v["meet"], "call": v["call"]}
                 for (b, p), v in sorted(acc.items())]
-        payload["months"][key] = {"label": label.lower(), "rows": rows,
+        month_num = {"may": 5, "jun": 6, "jul": 7, "august": 8}[slug]
+        payload["months"][key] = {"label": label.lower(), "year": 2026, "month": month_num, "full": True, "rows": rows,
                                   "post": load_metrika(f"{args.metrika_dir}/{METRIKA_FILE[slug]}"),
                                   "postb": postb.get(key, {})}
         tot = {k: sum(r[k] for r in rows) for k in ("cost", "deal", "meet", "call")}
         report.append((label, tot, unknown))
+
+    budget_report = []
+    if args.budget:
+        budget, unknown_projects = load_budget(args.budget, skip_keys=set(payload["months"]))
+        for key, m in sorted(budget.items(), key=lambda kv: (kv[1]["year"], kv[1]["month"])):
+            name = next(n for n, i in RU_MONTHS.items() if i == m["month"])
+            payload["months"][key] = {"label": f"{name} {m['year']}", "year": m["year"], "month": m["month"],
+                                      "full": False, "rows": m["rows"], "post": {}, "postb": {}}
+            budget_report.append((key, sum(r["cost"] for r in m["rows"]), sum(r["impr"] for r in m["rows"]),
+                                  sum(r["clicks"] for r in m["rows"])))
+        if unknown_projects:
+            print("Проекты бюджетного свода без блока:", sorted(unknown_projects))
+    payload["months"] = dict(sorted(payload["months"].items(), key=lambda kv: (kv[1]["year"], kv[1]["month"])))
 
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False)
@@ -297,6 +380,8 @@ def main():
     for label, tot, unknown in report:
         print(f"  {label}: расход {tot['cost']:,.0f}, сделки {tot['deal']}, встречи {tot['meet']}, звонки {tot['call']}"
               + (f"  | проекты без блока в расходах: {sorted(unknown)}" if unknown else ""))
+    for key, cost, impr, clicks in budget_report:
+        print(f"  бюджет {key}: расход с НДС {cost:,.0f}, показы {impr:,}, клики {clicks:,}")
     print("Конверсии по блокам (все месяцы):")
     byb = defaultdict(lambda: defaultdict(int))
     for c in convs:

@@ -122,6 +122,16 @@ ALIASES = {
     "astralab video": "astralab",
     "vkvideo": "vk_video", "vk video": "vk_video",
 
+    # --- названия из бюджетного свода «Бюджеты свод 25-26» ---
+    "video.yandex": "yandex", "promopages.yandex": "yandex", "geomedia.yandex": "yandex",
+    "vendor.market.yandex": "yandexmarket",
+    "ads-heads": "adheads",
+    "mts (smart tv)": "mts",
+    "мтс": "mts",
+    "hyperad.tech": "hyper", "hyper adtech": "hyper",
+    "roxot.com": "roxot",
+    "videonetwork (da)": "digital_alliance", "ivi (da videonetwork)": "digital_alliance",
+
     # --- варианты из свода конверсий за май-июль 2026 ---
     "яндекс rtb": "yandex_rtb",
 }
