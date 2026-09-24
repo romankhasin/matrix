@@ -19,6 +19,7 @@ Usage:
     python3 build_dashboard_data.py \
         --conv-mayjul "<Свод_ПБА_май-июль_2026.xlsx>" --conv-aug "<Свод_конверсий BI_август_2026.xlsx>" \
         --spend ../data/spend_source.xlsx --metrika-dir ../data \
+        --metrika-utm "<Метки UTM ЖК.csv>" "<Метки UTM Коммерция.csv>" \
         --out ../data/dashboard_data.json --inject ../dashboard/index.html ../docs/index.html
 """
 
@@ -218,6 +219,35 @@ def load_metrika(path):
     return post
 
 
+MONTH_KEY = {"2026-05": "may2026", "2026-06": "jun2026", "2026-07": "jul2026", "2026-08": "aug2026"}
+
+
+def load_metrika_utm(paths):
+    """Метрика «Метки UTM» (UTM Source × UTM Campaign × месяц визита), оба счётчика.
+    Блок берётся из токена UTM-кампании; отказы/время — визит-взвешенные по (месяц, блок, площадка).
+    Сюда попадают только кампании с токеном ЖК в названии — визиты без токена (например, часть
+    Яндекса: Карты, Дзен, Промопейджес) в выгрузке отсутствуют."""
+    acc = defaultdict(lambda: [0.0, 0.0, 0.0])
+    for path in paths:
+        rows = list(csv.reader(open(path, encoding="utf-8-sig")))
+        for r in rows[2:]:  # строка 1 — заголовок, строка 2 — «Итого и средние»
+            if not r or not r[0] or r[2][:7] not in MONTH_KEY:
+                continue
+            visits = float(r[3])
+            h, m, sec = (int(x) for x in r[7].split(":"))
+            block, _ = campaign_block(r[1], None)
+            a = acc[(MONTH_KEY[r[2][:7]], block, normalize_platform(r[0]))]
+            a[0] += visits
+            a[1] += float(r[6]) * visits * 100
+            a[2] += (h * 3600 + m * 60 + sec) * visits
+    out = defaultdict(dict)
+    for (month, block, platform), (v, bw, tw) in acc.items():
+        if platform == "unmapped":
+            continue
+        out[month][f"{block}|{platform}"] = {"visits": int(v), "bounce": round(bw / v, 2), "time": round(tw / v, 1)}
+    return out
+
+
 def inject(html_path, payload):
     s = open(html_path, encoding="utf-8").read()
     a, b = "/*DATA:START*/", "/*DATA:END*/"
@@ -232,12 +262,14 @@ def main():
     ap.add_argument("--conv-aug", required=True)
     ap.add_argument("--spend", required=True)
     ap.add_argument("--metrika-dir", required=True)
+    ap.add_argument("--metrika-utm", nargs="*", default=[], help="выгрузки Метрики «Метки UTM» с UTM Campaign (оба счётчика)")
     ap.add_argument("--out", required=True)
     ap.add_argument("--inject", nargs="*", default=[])
     args = ap.parse_args()
 
     convs = load_conversions(args.conv_mayjul, 9, 1) + load_conversions(args.conv_aug, 5, 0, "Август 2026")
 
+    postb = load_metrika_utm(args.metrika_utm) if args.metrika_utm else {}
     payload = {"blocks": [{"key": k, "label": l} for k, l in BLOCKS], "months": {}}
     report = []
     for key, label, src_month, slug in MONTHS:
@@ -253,7 +285,8 @@ def main():
                  "deal": v["deal"], "meet": v["meet"], "call": v["call"]}
                 for (b, p), v in sorted(acc.items())]
         payload["months"][key] = {"label": label.lower(), "rows": rows,
-                                  "post": load_metrika(f"{args.metrika_dir}/{METRIKA_FILE[slug]}")}
+                                  "post": load_metrika(f"{args.metrika_dir}/{METRIKA_FILE[slug]}"),
+                                  "postb": postb.get(key, {})}
         tot = {k: sum(r[k] for r in rows) for k in ("cost", "deal", "meet", "call")}
         report.append((label, tot, unknown))
 

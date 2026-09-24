@@ -63,7 +63,7 @@ ALIASES = {
     "getintent": "getintent",
     "byyd": "byyd",
     "roxot": "roxot",
-    "da": "da",
+    "da": "digital_alliance",
 
     "не указан": "unmapped", "не передан в выгрузке": "unmapped",
 
@@ -114,6 +114,13 @@ ALIASES = {
     "first-data": "first_data",
     "voxexchange": "vox",
     "не определено": "unmapped",
+
+    # --- расхождения названий между расходами и Метрикой «Метки UTM» с кампаниями ---
+    "avito-ads": "avito", "avito olv": "avito",
+    "inlab": "innovation_lab",
+    "qbid video": "qbid", "qbid banner": "qbid", "q.bid olv": "qbid",
+    "astralab video": "astralab",
+    "vkvideo": "vk_video", "vk video": "vk_video",
 
     # --- варианты из свода конверсий за май-июль 2026 ---
     "яндекс rtb": "yandex_rtb",
