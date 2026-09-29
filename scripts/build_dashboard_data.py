@@ -26,6 +26,7 @@ Usage:
 
 import argparse
 import csv
+import datetime
 import json
 import re
 import warnings
@@ -238,11 +239,35 @@ def to_num(v):
         return 0.0
 
 
-def load_budget(path, skip_keys=()):
+def load_deals_dated(path):
+    """Сделки с точной датой закрытия («участия_встречи_звонки_pbi_2025_2026_свод.xlsx», лист
+    «участия в сделках»): 6997 строк, каждая — «Сделка», модель «Участие (уник.)». Встреч и звонков
+    в файле нет, несмотря на название. Блок ЖК берём из UTM-кампании (campaign_block), а не из
+    колонки «Класс ЖК» в файле — она классифицирует иначе (например, Мичуринский там «Комфорт»,
+    Звенигородская — «Бизнес»), чтобы не расходиться с остальной разбивкой на блоки."""
+    ws = openpyxl.load_workbook(path, data_only=True, read_only=True).worksheets[1]
+    out = defaultdict(lambda: defaultdict(int))
+    for r in ws.iter_rows(values_only=True):
+        platform_raw, date, campaign = r[4], r[2], r[5]
+        if not platform_raw or not isinstance(date, datetime.datetime):
+            continue
+        canon = normalize_platform(platform_raw)
+        if canon == "unmapped":
+            canon = campaign_platform(campaign)
+        block, _ = campaign_block(campaign, None)
+        conv = r[6] if isinstance(r[6], (int, float)) else 1
+        key = f"{MONTH_SLUG[date.month]}{date.year}"
+        out[key][(block, canon)] += conv
+    return out
+
+
+def load_budget(path, skip_keys=(), deals_by_month=None):
     """Бюджетный свод («Бюджеты свод 25-26»): листы «<Месяц> <год>», столбцы D/E/G = Расход/показы/клики.
     Листы с другой раскладкой (недельные рабочие) пропускаются. Расход умножается на 1,2 (с НДС)."""
+    deals_by_month = deals_by_month or {}
     wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
     out, unknown = {}, set()
+    seen_keys = set()
     for ws in wb.worksheets:
         parts = ws.title.strip().lower().split()
         if len(parts) != 2 or parts[0] not in RU_MONTHS or not parts[1].isdigit():
@@ -267,11 +292,25 @@ def load_budget(path, skip_keys=()):
             a[1] += to_num(r[4])
             a[2] += to_num(r[6])
         key = f"{MONTH_SLUG[month]}{year}"
+        seen_keys.add(key)
         if key in skip_keys:
             continue
-        out[key] = {"year": year, "month": month,
-                    "rows": [{"b": b, "p": p, "cost": round(v[0], 2), "impr": int(v[1]), "clicks": int(v[2]),
-                              "deal": 0, "meet": 0, "call": 0} for (b, p), v in sorted(acc.items())]}
+        rows_out = {(b, p): {"b": b, "p": p, "cost": round(v[0], 2), "impr": int(v[1]), "clicks": int(v[2]),
+                             "deal": 0, "meet": 0, "call": 0} for (b, p), v in acc.items()}
+        for (b, p), deals in deals_by_month.get(key, {}).items():
+            rows_out.setdefault((b, p), {"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, "deal": 0, "meet": 0, "call": 0})
+            rows_out[(b, p)]["deal"] += deals
+        out[key] = {"year": year, "month": month, "rows": [rows_out[k] for k in sorted(rows_out)]}
+    # месяцы со сделками, но без листа в бюджетном своде (сейчас — январь 2025): отдельная запись,
+    # только сделки, без расхода/показов/кликов
+    for key, bp_deals in deals_by_month.items():
+        if key in seen_keys or key in skip_keys:
+            continue
+        m = re.match(r"([a-z]{3})(\d{4})", key)
+        month = {v: k for k, v in MONTH_SLUG.items()}[m.group(1)]
+        out[key] = {"year": int(m.group(2)), "month": month,
+                    "rows": [{"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, "deal": d, "meet": 0, "call": 0}
+                             for (b, p), d in sorted(bp_deals.items())]}
     return out, unknown
 
 
@@ -332,11 +371,18 @@ def main():
     ap.add_argument("--metrika-dir", required=True)
     ap.add_argument("--metrika-utm", nargs="*", default=[], help="выгрузки Метрики «Метки UTM» с UTM Campaign (оба счётчика)")
     ap.add_argument("--budget", help="бюджетный свод за прошлые месяцы (Бюджеты свод 25-26.xlsx): только расход, показы, клики")
+    ap.add_argument("--deals-dated", help="сделки с точной датой (участия_встречи_звонки_pbi_2025_2026_свод.xlsx): заменяет сделки мая-июня 2026 и добавляет сделки к месяцам до мая 2026")
     ap.add_argument("--out", required=True)
     ap.add_argument("--inject", nargs="*", default=[])
     args = ap.parse_args()
 
     convs = load_conversions(args.conv_mayjul, 9, 1) + load_conversions(args.conv_aug, 5, 0, "Август 2026")
+
+    deals_dated = load_deals_dated(args.deals_dated) if args.deals_dated else {}
+    REPLACE_DEAL_MONTHS = {"may2026", "jun2026"}  # для этих месяцев берём сделки из deals_dated (точная дата) вместо convs
+    REPLACE_MONTH_LABELS = {"Май 2026": "may2026", "Июнь 2026": "jun2026"}
+    if deals_dated:
+        convs = [c for c in convs if not (c["kind"] == "deal" and REPLACE_MONTH_LABELS.get(c["month"]) in REPLACE_DEAL_MONTHS)]
 
     postb = load_metrika_utm(args.metrika_utm) if args.metrika_utm else {}
     payload = {"blocks": [{"key": k, "label": l} for k, l in BLOCKS], "months": {}}
@@ -350,6 +396,9 @@ def main():
         for c in convs:
             if c["month"] == src_month:
                 acc[(c["block"], c["platform"])][c["kind"]] += c["conv"]
+        if key in REPLACE_DEAL_MONTHS:
+            for (b, p), deals in deals_dated.get(key, {}).items():
+                acc[(b, p)]["deal"] += deals
         rows = [{"b": b, "p": p, "cost": round(v["cost"], 2), "impr": int(v["impr"]), "clicks": int(v["clicks"]),
                  "deal": v["deal"], "meet": v["meet"], "call": v["call"]}
                 for (b, p), v in sorted(acc.items())]
@@ -362,7 +411,7 @@ def main():
 
     budget_report = []
     if args.budget:
-        budget, unknown_projects = load_budget(args.budget, skip_keys=set(payload["months"]))
+        budget, unknown_projects = load_budget(args.budget, skip_keys=set(payload["months"]), deals_by_month=deals_dated)
         for key, m in sorted(budget.items(), key=lambda kv: (kv[1]["year"], kv[1]["month"])):
             name = next(n for n, i in RU_MONTHS.items() if i == m["month"])
             payload["months"][key] = {"label": f"{name} {m['year']}", "year": m["year"], "month": m["month"],

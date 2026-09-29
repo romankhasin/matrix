@@ -122,6 +122,14 @@ ALIASES = {
     "astralab video": "astralab",
     "vkvideo": "vk_video", "vk video": "vk_video",
 
+    # --- названия из свода сделок с датами (участия_встречи_звонки_pbi_2025_2026_свод) ---
+    "яндекс. метка": "yandex_metka", "яндекс.карты": "yandex_maps_pin",
+    "яндекс бизнес": "yandex_business", "яндекс навигатор баннер": "yandex_navigator",
+    "я.геосервисы": "yandex_geo", "google my business": "google_business",
+    "яндекс": "yandex", "cian перетяжка": "cian", "cian паралакс": "cian",
+    "redlama - программатик": "redllama", "redllama": "redllama",
+    "yandex_небоскреб_регионы": "yandex_skyline_regions", "yandex небоскреб регионы": "yandex_skyline_regions",
+
     # --- названия из бюджетного свода «Бюджеты свод 25-26» ---
     "video.yandex": "yandex", "promopages.yandex": "yandex", "geomedia.yandex": "yandex",
     "vendor.market.yandex": "yandexmarket",
