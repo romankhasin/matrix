@@ -110,6 +110,14 @@ METRIKA_FILE = {"may": "metrika_may2026.csv", "jun": "metrika_jun2026.csv",
 COST_CANDIDATES = ["Расход с НДС и АК с учетом компенсации", "Расход с НДС и АК", "Расход с НДС", "Расход без НДС"]
 ZW = re.compile(r"[​‌‍﻿]")
 
+# кампании старых лет (например «..._oct23», «..._sep24») отбрасываются: их сделки/встречи/звонки
+# не отражают текущее размещение и искажают рейтинг актуальных кампаний
+STALE_CAMPAIGN_YEARS = re.compile(r"_(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(23|24)(?:[_\W]|$)", re.I)
+
+
+def is_stale_campaign(campaign):
+    return bool(STALE_CAMPAIGN_YEARS.search(campaign or ""))
+
 
 def num(v):
     return v if isinstance(v, (int, float)) else 0.0
@@ -181,7 +189,7 @@ def load_conversions(path, header_first_row, offset, month_fixed=None):
         ctype, model, platform, campaign, pname = r[2 + offset], r[3 + offset], r[8], r[9], r[10]
         conv = r[12] or 0
         kind = conv_kind(ctype, model)
-        if not kind:
+        if not kind or is_stale_campaign(campaign):
             continue
         canon = normalize_platform(platform)
         if platform in (None, "Не указан", "Не передан в выгрузке") or canon == "unmapped":
@@ -249,7 +257,7 @@ def load_deals_dated(path):
     out = defaultdict(lambda: defaultdict(int))
     for r in ws.iter_rows(values_only=True):
         platform_raw, date, campaign = r[4], r[2], r[5]
-        if not platform_raw or not isinstance(date, datetime.datetime):
+        if not platform_raw or not isinstance(date, datetime.datetime) or is_stale_campaign(campaign):
             continue
         canon = normalize_platform(platform_raw)
         if canon == "unmapped":
