@@ -139,6 +139,7 @@ ALIASES = {
     "hyperad.tech": "hyper", "hyper adtech": "hyper",
     "roxot.com": "roxot",
     "videonetwork (da)": "digital_alliance", "ivi (da videonetwork)": "digital_alliance",
+    "videonetwork": "digital_alliance", "stremingads": "streamingads",
 
     # --- варианты из свода конверсий за май-июль 2026 ---
     "яндекс rtb": "yandex_rtb",

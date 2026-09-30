@@ -479,6 +479,81 @@ def load_metrika_utm(paths):
     return out
 
 
+def campaign_month_year_fallback(toks, fallback_year):
+    """Запасной разбор месяца/года — только для метрики без отдельного столбца месяца:
+    диапазоны «jan25-may25» (берём первый месяц) и голый месяц без года («discount_feb»,
+    год берётся из имени файла — периода отчёта)."""
+    for t in toks:
+        for part in t.strip().split("-"):
+            m = MONTH_TOKEN_RE.match(part)
+            if m and m.group(1).lower() in MONTH_TOKEN:
+                return 2000 + int(m.group(2)), MONTH_TOKEN[m.group(1).lower()]
+    if fallback_year is not None:
+        for t in toks:
+            tl = t.strip().lower()
+            if tl in MONTH_TOKEN:
+                return fallback_year, MONTH_TOKEN[tl]
+    return None
+
+
+def load_metrika_campaign(paths, known_platforms):
+    """Метрика «Метки UTM» без отдельных колонок площадки/месяца — только UTM Campaign, визиты,
+    отказы, время на сайте (xlsx, отчёт уже отфильтрован по периоду отчёта, например
+    «Метки UTM-2025-01-01-2025-03-31.xlsx»). Блок, площадка и месяц/год достаются из токенов
+    самой кампании — так же, как в load_deals_tokenized. Строки без определяемого месяца или
+    площадки, и с годом 2023/2024, отбрасываются.
+    Возвращает (post_by_month, postb_by_month) — те же формы, что load_metrika()/load_metrika_utm(),
+    только оба сразу из одного источника (постклик по площадке в целом и по блок×площадка)."""
+    acc_plat = defaultdict(lambda: [0.0, 0.0, 0.0])
+    acc_block = defaultdict(lambda: [0.0, 0.0, 0.0])
+    skipped_month = skipped_plat = skipped_stale = 0
+    for path in paths:
+        # период отчёта (первый год в имени файла) — запасной год для токенов вида «..._discount_feb»
+        # без цифр года, и для диапазонов «jan25-may25» (берём первый месяц диапазона)
+        fname_year_m = re.search(r"(\d{4})-\d{2}-\d{2}", path)
+        fallback_year = int(fname_year_m.group(1)) if fname_year_m else None
+        ws = openpyxl.load_workbook(path, data_only=True, read_only=True).worksheets[0]
+        rows = list(ws.iter_rows(values_only=True))
+        header = [str(h).strip() if h else "" for h in rows[0]]
+        if header[:4] != ["UTM Campaign", "Визиты", "Отказы", "Время на сайте"]:
+            raise SystemExit(f"{path}: неожиданные колонки {header[:4]}")
+        for r in rows[1:]:
+            campaign = r[0]
+            if not campaign or not isinstance(r[1], (int, float)):
+                continue
+            toks = str(campaign).split("_")
+            my = token_month_year(toks) or campaign_month_year_fallback(toks, fallback_year)
+            if my is None:
+                skipped_month += r[1]
+                continue
+            year, month = my
+            if year in (2023, 2024):
+                skipped_stale += r[1]
+                continue
+            platform = token_platform(toks, known_platforms)
+            if platform is None:
+                skipped_plat += r[1]
+                continue
+            block, _ = campaign_block(str(campaign), None)
+            visits = float(r[1])
+            bounce_pct = float(r[2]) * 100
+            hh, mm, ss = (int(x) for x in str(r[3]).split(":"))
+            time_sec = hh * 3600 + mm * 60 + ss
+            key = f"{MONTH_SLUG[month]}{year}"
+            for acc, k in ((acc_plat, (key, platform)), (acc_block, (key, f"{block}|{platform}"))):
+                a = acc[k]
+                a[0] += visits; a[1] += bounce_pct * visits; a[2] += time_sec * visits
+    print(f"[metrika-campaign] визитов распознано {sum(a[0] for a in acc_plat.values()):,.0f}, "
+          f"без площадки {skipped_plat:,.0f}, без месяца {skipped_month:,.0f}, отброшено (2023/2024) {skipped_stale:,.0f}")
+    post = defaultdict(dict)
+    for (key, platform), (v, bw, tw) in acc_plat.items():
+        post[key][platform] = {"visits": int(v), "bounce": round(bw / v, 2), "time": round(tw / v, 1)}
+    postb = defaultdict(dict)
+    for (key, bp), (v, bw, tw) in acc_block.items():
+        postb[key][bp] = {"visits": int(v), "bounce": round(bw / v, 2), "time": round(tw / v, 1)}
+    return dict(post), dict(postb)
+
+
 def inject(html_path, payload):
     s = open(html_path, encoding="utf-8").read()
     a, b = "/*DATA:START*/", "/*DATA:END*/"
@@ -497,6 +572,7 @@ def main():
     ap.add_argument("--budget", help="бюджетный свод за прошлые месяцы (Бюджеты свод 25-26.xlsx): только расход, показы, клики")
     ap.add_argument("--deals-dated", help="сделки с точной датой (участия_встречи_звонки_pbi_2025_2026_свод.xlsx): заменяет сделки мая-июня 2026 и добавляет сделки к месяцам до мая 2026")
     ap.add_argument("--deals-tokenized", help="сделки с разложенными по колонкам UTM-токенами, включая формат (PBi для стратегии тест.xlsx): площадка определяется по уже занесённым в бюджеты/расходы названиям")
+    ap.add_argument("--metrika-campaign", nargs="*", default=[], help="Метрика без колонок площадки/месяца — только UTM Campaign/визиты/отказы/время (Метки UTM-<период>.xlsx, можно несколько файлов за разные периоды)")
     ap.add_argument("--out", required=True)
     ap.add_argument("--inject", nargs="*", default=[])
     args = ap.parse_args()
@@ -514,19 +590,30 @@ def main():
     if deals_dated:
         convs = [c for c in convs if not (c["kind"] == "deal" and REPLACE_MONTH_LABELS.get(c["month"]) in REPLACE_DEAL_MONTHS)]
 
-    deals_tokenized, fmt_tokenized = {}, {}
-    if args.deals_tokenized:
+    known_platforms = None
+
+    def get_known_platforms():
         # «уже занесённые площадки» — по названию, а не по формальному алиасу: всё, что уже встречается
         # в расходах (spend_source.xlsx) и в бюджетном своде за этот же запуск
-        known_platforms = set(ALIASES.values())
-        for _, label, _, _ in MONTHS:
-            spend_rows, _ = load_spend(args.spend, label)
-            known_platforms.update(r["platform"] for r in spend_rows)
-        if args.budget:
-            harvest, _ = load_budget(args.budget, skip_keys=set())
-            for m in harvest.values():
-                known_platforms.update(r["p"] for r in m["rows"])
-        deals_tokenized, fmt_tokenized = load_deals_tokenized(args.deals_tokenized, known_platforms)
+        nonlocal known_platforms
+        if known_platforms is None:
+            known_platforms = set(ALIASES.values())
+            for _, label, _, _ in MONTHS:
+                spend_rows, _ = load_spend(args.spend, label)
+                known_platforms.update(r["platform"] for r in spend_rows)
+            if args.budget:
+                harvest, _ = load_budget(args.budget, skip_keys=set())
+                for m in harvest.values():
+                    known_platforms.update(r["p"] for r in m["rows"])
+        return known_platforms
+
+    deals_tokenized, fmt_tokenized = {}, {}
+    if args.deals_tokenized:
+        deals_tokenized, fmt_tokenized = load_deals_tokenized(args.deals_tokenized, get_known_platforms())
+
+    metrika_campaign_post, metrika_campaign_postb = {}, {}
+    if args.metrika_campaign:
+        metrika_campaign_post, metrika_campaign_postb = load_metrika_campaign(args.metrika_campaign, get_known_platforms())
 
     # сводим deals_dated и deals_tokenized в одну надбавку к сделкам (суммируются, если оба покрывают месяц)
     deal_overrides = defaultdict(lambda: defaultdict(int))
@@ -554,9 +641,10 @@ def main():
                  **({"fmt": fmt_tokenized[key][(b, p)]} if fmt_tokenized.get(key, {}).get((b, p)) else {})}
                 for (b, p), v in sorted(acc.items())]
         month_num = {"may": 5, "jun": 6, "jul": 7, "august": 8}[slug]
-        post = load_metrika(f"{args.metrika_dir}/{METRIKA_FILE[slug]}") if args.metrika_dir else {}
+        post = metrika_campaign_post.get(key) or (load_metrika(f"{args.metrika_dir}/{METRIKA_FILE[slug]}") if args.metrika_dir else {})
+        postb_month = {**postb.get(key, {}), **metrika_campaign_postb.get(key, {})}
         payload["months"][key] = {"label": label.lower(), "year": 2026, "month": month_num, "full": have_convs, "rows": rows,
-                                  "post": post, "postb": postb.get(key, {})}
+                                  "post": post, "postb": postb_month}
         tot = {k: sum(r[k] for r in rows) for k in ("cost", "deal", "meet", "call")}
         report.append((label, tot, unknown))
 
@@ -565,8 +653,10 @@ def main():
         budget, unknown_projects = load_budget(args.budget, skip_keys=set(payload["months"]), deals_by_month=deal_overrides, fmt_by_month=fmt_tokenized)
         for key, m in sorted(budget.items(), key=lambda kv: (kv[1]["year"], kv[1]["month"])):
             name = next(n for n, i in RU_MONTHS.items() if i == m["month"])
+            has_metrika = key in metrika_campaign_postb
             payload["months"][key] = {"label": f"{name} {m['year']}", "year": m["year"], "month": m["month"],
-                                      "full": False, "rows": m["rows"], "post": {}, "postb": {}}
+                                      "full": has_metrika, "rows": m["rows"],
+                                      "post": metrika_campaign_post.get(key, {}), "postb": metrika_campaign_postb.get(key, {})}
             budget_report.append((key, sum(r["cost"] for r in m["rows"]), sum(r["impr"] for r in m["rows"]),
                                   sum(r["clicks"] for r in m["rows"])))
         if unknown_projects:
