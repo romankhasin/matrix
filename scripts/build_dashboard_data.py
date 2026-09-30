@@ -373,10 +373,10 @@ def inject(html_path, payload):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--conv-mayjul", required=True)
-    ap.add_argument("--conv-aug", required=True)
+    ap.add_argument("--conv-mayjul", help="Свод_ПБА_май-июль_2026.xlsx — если не передан, май/июнь/июль 2026 идут только с бюджетом (без конверсий)")
+    ap.add_argument("--conv-aug", help="Свод_конверсий BI_август_2026.xlsx — если не передан, август 2026 идёт только с бюджетом")
     ap.add_argument("--spend", required=True)
-    ap.add_argument("--metrika-dir", required=True)
+    ap.add_argument("--metrika-dir", help="если не передан, постклик (отказы/время) не подключается")
     ap.add_argument("--metrika-utm", nargs="*", default=[], help="выгрузки Метрики «Метки UTM» с UTM Campaign (оба счётчика)")
     ap.add_argument("--budget", help="бюджетный свод за прошлые месяцы (Бюджеты свод 25-26.xlsx): только расход, показы, клики")
     ap.add_argument("--deals-dated", help="сделки с точной датой (участия_встречи_звонки_pbi_2025_2026_свод.xlsx): заменяет сделки мая-июня 2026 и добавляет сделки к месяцам до мая 2026")
@@ -384,7 +384,12 @@ def main():
     ap.add_argument("--inject", nargs="*", default=[])
     args = ap.parse_args()
 
-    convs = load_conversions(args.conv_mayjul, 9, 1) + load_conversions(args.conv_aug, 5, 0, "Август 2026")
+    convs = []
+    if args.conv_mayjul:
+        convs += load_conversions(args.conv_mayjul, 9, 1)
+    if args.conv_aug:
+        convs += load_conversions(args.conv_aug, 5, 0, "Август 2026")
+    have_convs = bool(args.conv_mayjul or args.conv_aug)
 
     deals_dated = load_deals_dated(args.deals_dated) if args.deals_dated else {}
     REPLACE_DEAL_MONTHS = {"may2026", "jun2026"}  # для этих месяцев берём сделки из deals_dated (точная дата) вместо convs
@@ -411,9 +416,9 @@ def main():
                  "deal": v["deal"], "meet": v["meet"], "call": v["call"]}
                 for (b, p), v in sorted(acc.items())]
         month_num = {"may": 5, "jun": 6, "jul": 7, "august": 8}[slug]
-        payload["months"][key] = {"label": label.lower(), "year": 2026, "month": month_num, "full": True, "rows": rows,
-                                  "post": load_metrika(f"{args.metrika_dir}/{METRIKA_FILE[slug]}"),
-                                  "postb": postb.get(key, {})}
+        post = load_metrika(f"{args.metrika_dir}/{METRIKA_FILE[slug]}") if args.metrika_dir else {}
+        payload["months"][key] = {"label": label.lower(), "year": 2026, "month": month_num, "full": have_convs, "rows": rows,
+                                  "post": post, "postb": postb.get(key, {})}
         tot = {k: sum(r[k] for r in rows) for k in ("cost", "deal", "meet", "call")}
         report.append((label, tot, unknown))
 
