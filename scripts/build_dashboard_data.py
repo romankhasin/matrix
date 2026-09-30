@@ -379,11 +379,55 @@ def load_deals_tokenized(path, known_platforms):
     return {k: dict(v) for k, v in deals.items()}, {k: {kk: dict(vv) for kk, vv in v.items()} for k, v in fmts.items()}
 
 
-def load_budget(path, skip_keys=(), deals_by_month=None, fmt_by_month=None):
+MC_SHEETS = {"встречи участия": "meet", "звонки 1й клик 90 дн": "call"}
+# «сделки 1й клик 90 дн» и «встречи 1й клик 90 дн» в этом файле смешивают модель атрибуции с тем,
+# что уже используется для сделок/встреч (участие) — те же соображения, что и раньше про
+# «не смешивать окна атрибуции», поэтому эти два листа не подключаются.
+
+
+def load_deals_meetings_calls(path):
+    """4 листа «Кампания» + «Атрибутировано»: встречи (участие) и звонки (первый клик, 90 дн) —
+    те же модели, что и раньше. Возвращает month_key -> (block, platform) -> {"meet":n, "call":n}."""
+    wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
+    out = defaultdict(lambda: defaultdict(lambda: {"meet": 0, "call": 0}))
+    skipped = defaultdict(int)
+    for sheet_name, kind in MC_SHEETS.items():
+        if sheet_name not in wb.sheetnames:
+            continue
+        for r in wb[sheet_name].iter_rows(min_row=2, values_only=True):
+            campaign, conv = r[0], r[1]
+            if not campaign or not isinstance(conv, (int, float)):
+                continue
+            if is_stale_campaign(campaign):
+                skipped["stale"] += conv
+                continue
+            segs = [x.strip() for x in str(campaign).split("|")]
+            my = token_month_year(segs[-1].split("_")) if segs else None
+            if my is None:
+                skipped["month"] += conv
+                continue
+            year, month = my
+            if year in (2023, 2024):
+                skipped["stale"] += conv
+                continue
+            platform = campaign_platform(campaign)
+            if platform == "unmapped":
+                skipped["platform"] += conv
+                continue
+            block, _ = campaign_block(campaign, None)
+            key = f"{MONTH_SLUG[month]}{year}"
+            out[key][(block, platform)][kind] += conv
+    print(f"[встречи/звонки] распознано {sum(v['meet']+v['call'] for m in out.values() for v in m.values())}, "
+          f"без площадки {skipped['platform']}, без месяца {skipped['month']}, отброшено (2023/2024) {skipped['stale']}")
+    return {k: dict(v) for k, v in out.items()}
+
+
+def load_budget(path, skip_keys=(), deals_by_month=None, fmt_by_month=None, mc_by_month=None):
     """Бюджетный свод («Бюджеты свод 25-26»): листы «<Месяц> <год>», столбцы D/E/G = Расход/показы/клики.
     Листы с другой раскладкой (недельные рабочие) пропускаются. Расход умножается на 1,2 (с НДС)."""
     deals_by_month = deals_by_month or {}
     fmt_by_month = fmt_by_month or {}
+    mc_by_month = mc_by_month or {}
     wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
     out, unknown = {}, set()
     seen_keys = set()
@@ -422,19 +466,31 @@ def load_budget(path, skip_keys=(), deals_by_month=None, fmt_by_month=None):
         for (b, p), fmt in fmt_by_month.get(key, {}).items():
             if (b, p) in rows_out:
                 rows_out[(b, p)]["fmt"] = fmt
+        for (b, p), mc in mc_by_month.get(key, {}).items():
+            rows_out.setdefault((b, p), {"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, "deal": 0, "meet": 0, "call": 0})
+            rows_out[(b, p)]["meet"] += mc.get("meet", 0)
+            rows_out[(b, p)]["call"] += mc.get("call", 0)
         out[key] = {"year": year, "month": month, "rows": [rows_out[k] for k in sorted(rows_out)]}
     # месяцы со сделками, но без листа в бюджетном своде (сейчас — январь 2025): отдельная запись,
     # только сделки, без расхода/показов/кликов
-    for key, bp_deals in deals_by_month.items():
+    for key in set(deals_by_month) | set(mc_by_month):
         if key in seen_keys or key in skip_keys:
             continue
         m = re.match(r"([a-z]{3})(\d{4})", key)
         month = {v: k for k, v in MONTH_SLUG.items()}[m.group(1)]
         month_fmt = fmt_by_month.get(key, {})
-        out[key] = {"year": int(m.group(2)), "month": month,
-                    "rows": [{"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, "deal": d, "meet": 0, "call": 0,
-                             **({"fmt": month_fmt[(b, p)]} if month_fmt.get((b, p)) else {})}
-                             for (b, p), d in sorted(bp_deals.items())]}
+        rows_out = {}
+        for (b, p), d in deals_by_month.get(key, {}).items():
+            rows_out.setdefault((b, p), {"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, "deal": 0, "meet": 0, "call": 0})
+            rows_out[(b, p)]["deal"] += d
+        for (b, p), mc in mc_by_month.get(key, {}).items():
+            rows_out.setdefault((b, p), {"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, "deal": 0, "meet": 0, "call": 0})
+            rows_out[(b, p)]["meet"] += mc.get("meet", 0)
+            rows_out[(b, p)]["call"] += mc.get("call", 0)
+        for (b, p), fmt in month_fmt.items():
+            if (b, p) in rows_out:
+                rows_out[(b, p)]["fmt"] = fmt
+        out[key] = {"year": int(m.group(2)), "month": month, "rows": [rows_out[k] for k in sorted(rows_out)]}
     return out, unknown
 
 
@@ -573,6 +629,7 @@ def main():
     ap.add_argument("--deals-dated", help="сделки с точной датой (участия_встречи_звонки_pbi_2025_2026_свод.xlsx): заменяет сделки мая-июня 2026 и добавляет сделки к месяцам до мая 2026")
     ap.add_argument("--deals-tokenized", help="сделки с разложенными по колонкам UTM-токенами, включая формат (PBi для стратегии тест.xlsx): площадка определяется по уже занесённым в бюджеты/расходы названиям")
     ap.add_argument("--metrika-campaign", nargs="*", default=[], help="Метрика без колонок площадки/месяца — только UTM Campaign/визиты/отказы/время (Метки UTM-<период>.xlsx, можно несколько файлов за разные периоды)")
+    ap.add_argument("--meetings-calls", help="встречи и звонки (PBi для стратегии (2).xlsx: листы «встречи участия» и «звонки 1й клик 90 дн»)")
     ap.add_argument("--out", required=True)
     ap.add_argument("--inject", nargs="*", default=[])
     args = ap.parse_args()
@@ -611,6 +668,8 @@ def main():
     if args.deals_tokenized:
         deals_tokenized, fmt_tokenized = load_deals_tokenized(args.deals_tokenized, get_known_platforms())
 
+    mc_overrides = load_deals_meetings_calls(args.meetings_calls) if args.meetings_calls else {}
+
     metrika_campaign_post, metrika_campaign_postb = {}, {}
     if args.metrika_campaign:
         metrika_campaign_post, metrika_campaign_postb = load_metrika_campaign(args.metrika_campaign, get_known_platforms())
@@ -636,6 +695,9 @@ def main():
                 acc[(c["block"], c["platform"])][c["kind"]] += c["conv"]
         for (b, p), deals in deal_overrides.get(key, {}).items():
             acc[(b, p)]["deal"] += deals
+        for (b, p), mc in mc_overrides.get(key, {}).items():
+            acc[(b, p)]["meet"] += mc.get("meet", 0)
+            acc[(b, p)]["call"] += mc.get("call", 0)
         rows = [{"b": b, "p": p, "cost": round(v["cost"], 2), "impr": int(v["impr"]), "clicks": int(v["clicks"]),
                  "deal": v["deal"], "meet": v["meet"], "call": v["call"],
                  **({"fmt": fmt_tokenized[key][(b, p)]} if fmt_tokenized.get(key, {}).get((b, p)) else {})}
@@ -651,7 +713,7 @@ def main():
 
     budget_report = []
     if args.budget:
-        budget, unknown_projects = load_budget(args.budget, skip_keys=set(payload["months"]), deals_by_month=deal_overrides, fmt_by_month=fmt_tokenized)
+        budget, unknown_projects = load_budget(args.budget, skip_keys=set(payload["months"]), deals_by_month=deal_overrides, fmt_by_month=fmt_tokenized, mc_by_month=mc_overrides)
         for key, m in sorted(budget.items(), key=lambda kv: (kv[1]["year"], kv[1]["month"])):
             name = next(n for n, i in RU_MONTHS.items() if i == m["month"])
             has_metrika = key in metrika_campaign_postb
