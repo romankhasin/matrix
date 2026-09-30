@@ -77,6 +77,7 @@ ALIASES = {
     "promopages.yandex.ru": "yandex_promopages",
     "video yandex (connected tv)": "yandex",
     "дзен": "dzen",
+    "дзен статья": "dzen",
     "яндекс погода": "yandex_weather",
     "adsheads": "adheads",
     "альфа-мобайл": "alfabank",
