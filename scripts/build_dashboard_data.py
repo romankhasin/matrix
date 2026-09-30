@@ -643,7 +643,8 @@ def main():
         month_num = {"may": 5, "jun": 6, "jul": 7, "august": 8}[slug]
         post = metrika_campaign_post.get(key) or (load_metrika(f"{args.metrika_dir}/{METRIKA_FILE[slug]}") if args.metrika_dir else {})
         postb_month = {**postb.get(key, {}), **metrika_campaign_postb.get(key, {})}
-        payload["months"][key] = {"label": label.lower(), "year": 2026, "month": month_num, "full": have_convs, "rows": rows,
+        is_full = have_convs or key in metrika_campaign_postb  # рейтинг строится, если есть Метрика (хоть откуда)
+        payload["months"][key] = {"label": label.lower(), "year": 2026, "month": month_num, "full": is_full, "rows": rows,
                                   "post": post, "postb": postb_month}
         tot = {k: sum(r[k] for r in rows) for k in ("cost", "deal", "meet", "call")}
         report.append((label, tot, unknown))
