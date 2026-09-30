@@ -348,6 +348,30 @@
     margin-top:18px; padding-top:14px; border-top:1px solid var(--line);
     font-size:12px; color:var(--text-faint); line-height:1.5;
   }
+
+  .lag-btn .ico{border-radius:4px;}
+  .modal.wide{max-width:860px;}
+  .lag-kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(84px,1fr)); gap:10px; margin-bottom:6px;}
+  .lag-kpi{background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px;}
+  .lag-kpi .v{font-family:var(--font-mono); font-size:22px; font-weight:600; color:var(--accent); line-height:1.1;}
+  .lag-kpi .l{font-size:11px; color:var(--text-faint); margin-top:4px;}
+  .lag-dist{display:flex; align-items:flex-end; gap:3px; height:120px; padding:8px 0 0; border-bottom:1px solid var(--line);}
+  .lag-dist .bar{flex:1; background:linear-gradient(0deg,var(--teal),var(--accent)); border-radius:2px 2px 0 0; min-height:1px; position:relative;}
+  .lag-dist .bar.med{outline:1.5px solid var(--text);}
+  .lag-axis{display:flex; gap:3px; font-family:var(--font-mono); font-size:9.5px; color:var(--text-faint); margin-bottom:4px;}
+  .lag-axis span{flex:1; text-align:center;}
+  table.lagt{width:100%; border-collapse:collapse; font-size:12.5px;}
+  table.lagt th{font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); font-weight:600; text-align:right; padding:6px 8px; border-bottom:1px solid var(--line);}
+  table.lagt th:first-child, table.lagt td:first-child{text-align:left;}
+  table.lagt td{padding:7px 8px; border-bottom:1px solid var(--line); text-align:right; font-family:var(--font-mono); color:var(--text-dim); white-space:nowrap;}
+  table.lagt td:first-child{font-family:var(--font-body); color:var(--text);}
+  table.lagt td.bcell{width:34%; padding-left:14px;}
+  table.lagt tr:last-child td{border-bottom:none;}
+  .lagbar{height:6px; border-radius:3px; background:var(--surface-2); overflow:hidden;}
+  .lagbar i{display:block; height:100%; background:linear-gradient(90deg,var(--teal),var(--accent));}
+  .lag-cols{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  @media (max-width:700px){ .lag-cols{grid-template-columns:1fr;} }
+  .lag-fast{color:var(--good)!important;} .lag-slow{color:var(--bad)!important;}
 </style>
 
 <header>
@@ -358,10 +382,22 @@
   </div>
   <div class="header-right">
     <div class="period mono" id="period-label">реальные данные · авг 2026</div>
+    <button class="help-btn lag-btn" id="lag-btn" type="button"><span class="ico">⏱</span>Лаг клик → сделка</button>
     <button class="help-btn" id="help-btn" type="button"><span class="ico">?</span>Как это работает</button>
   </div>
 </header>
 
+<div class="modal-overlay" id="lag-overlay">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="lag-title">
+    <div class="modal-head">
+      <h2 id="lag-title">Сколько проходит от клика до сделки</h2>
+      <button class="modal-close" id="lag-close" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-lede" id="lag-lede"></div>
+    <div class="modal-body" id="lag-body"></div>
+    <div class="modal-foot">Месяц клика взят из UTM-кампании (jan25, june24…), лаг — в календарных месяцах. К дате договора прибавлено 3 ч (в выгрузке время 21:00 — сдвиг часового пояса). Данные цензурированы: договоры только за янв 2025 – июл 2026, поэтому лаг свежих кампаний занижен. Реальный день клика неизвестен (±1 мес). Источник: лист «участия в сделках», «PBi для стратегии».</div>
+  </div>
+</div>
 <div class="modal-overlay" id="help-overlay">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
     <div class="modal-head">
@@ -1231,4 +1267,36 @@ helpBtn.addEventListener('click', openHelp);
 helpClose.addEventListener('click', closeHelp);
 helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) closeHelp(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHelp(); });
+
+const LAG = {"n": 3336, "total": 4835, "mean": 8.2, "median": 6.0, "p25": 3.0, "p75": 13.0, "p90": 19.0, "max": 33, "dist": [149, 261, 396, 212, 438, 203, 171, 152, 99, 95, 93, 100, 97, 92, 85, 77, 115, 81, 49, 65, 50, 40, 55, 39, 28, 25, 24, 17, 3, 6, 9, 4, 2, 4], "platforms": [["Yandex_Go", 37, 1.2, 1.0], ["Novostroy-Gid медийка", 39, 3.6, 3.0], ["market yandex", 299, 4.0, 3.0], ["mskguru", 34, 5.0, 4.0], ["MTS", 292, 5.1, 4.0], ["Video yandex", 435, 6.4, 5.0], ["Media yandex", 455, 7.0, 4.0], ["Ozon", 209, 7.6, 5.0], ["Novostroy-M.ru медийка", 191, 8.2, 6.0], ["AdHeads", 323, 11.9, 13.0], ["Cian ТГБ", 438, 12.7, 13.0], ["Cian Брендирование", 90, 13.6, 15.0], ["Plazkart", 50, 17.6, 19.0]], "groups": [["Программатик", 1743, 7.9, 5.0], ["Медийка", 1559, 8.6, 6.0], ["Видеореклама", 34, 7.7, 4.5]], "objects": [["ЖК Южнопортовая", 1219, 7.4, 4.0], ["ЖК Войковская", 657, 6.5, 3.0], ["ЖК Мичуринский", 381, 9.1, 6.0], ["ЖК Лесной", 341, 10.1, 7.0], ["ЖК Селигерская", 308, 10.3, 9.0], ["ЖК Павелецкая сити", 303, 10.5, 11.0], ["ЖК Звенигородская", 71, 8.2, 7.0], ["ЖК Нижегородская", 38, 2.4, 1.0]]};
+(function(){
+  const f1 = v => v.toLocaleString('ru-RU',{maximumFractionDigits:1});
+  const mx = Math.max(...LAG.dist);
+  const kp = (v,l) => `<div class="lag-kpi"><div class="v">${f1(v)}</div><div class="l">${l}</div></div>`;
+  const tbl = (rows, title) => {
+    const m = Math.max(...rows.map(r=>r[2]));
+    return `<table class="lagt"><thead><tr><th>${title}</th><th>Участий</th><th>Среднее</th><th>Медиана</th><th></th></tr></thead><tbody>` +
+      rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${f1(r[2])}</td><td>${f1(r[3])}</td><td class="bcell"><div class="lagbar"><i style="width:${(r[2]/m*100).toFixed(0)}%"></i></div></td></tr>`).join('') + '</tbody></table>';
+  };
+  document.getElementById('lag-lede').innerHTML =
+    `Среднее время от клика до договора — <b>${f1(LAG.mean)} мес</b>, медиана — <b>${f1(LAG.median)} мес</b>. Учтено ${LAG.n} из ${LAG.total} участий (${Math.round(LAG.n/LAG.total*100)}%); у остальных в названии кампании нет месяца и года.`;
+  document.getElementById('lag-body').innerHTML =
+    `<div class="lag-kpis">${kp(LAG.mean,'среднее, мес')}${kp(LAG.median,'медиана, мес')}${kp(LAG.p25,'25% закрылись за, мес')}${kp(LAG.p75,'75% закрылись за, мес')}${kp(LAG.p90,'90% закрылись за, мес')}${kp(LAG.max,'максимум, мес')}</div>
+     <h3>Распределение: участий по лагу</h3>
+     <div class="lag-dist">${LAG.dist.map((v,i)=>`<div class="bar ${i===LAG.median?'med':''}" style="height:${(v/mx*100).toFixed(1)}%" title="${i} мес: ${v}"></div>`).join('')}</div>
+     <div class="lag-axis">${LAG.dist.map((v,i)=>`<span>${i%3===0?i:''}</span>`).join('')}</div>
+     <div class="sub" style="font-size:11px;color:var(--text-faint)">месяцев между кликом и договором · рамка — медиана</div>
+     <h3>По площадкам (от быстрых к медленным, ≥30 участий)</h3>
+     ${tbl(LAG.platforms,'Площадка')}
+     <div class="lag-cols">
+       <div><h3>По группам</h3>${tbl(LAG.groups,'Группа')}</div>
+       <div><h3>По объектам (≥30 участий)</h3>${tbl(LAG.objects,'Объект')}</div>
+     </div>`;
+  const ov = document.getElementById('lag-overlay');
+  const open = () => ov.classList.add('open'), close = () => ov.classList.remove('open');
+  document.getElementById('lag-btn').addEventListener('click', open);
+  document.getElementById('lag-close').addEventListener('click', close);
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+})();
 </script>
