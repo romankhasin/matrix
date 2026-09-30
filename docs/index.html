@@ -173,6 +173,24 @@
     font-weight:600; font-family:var(--font-body);
   }
   table.rank thead th.col-name{left:0; z-index:4;}
+  table.rank td.col-name{display:flex; align-items:center; gap:8px;}
+  .hide-btn{
+    flex:none; width:18px; height:18px; border-radius:50%; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--text-faint); font-size:10px; line-height:1;
+    display:inline-flex; align-items:center; justify-content:center; cursor:pointer; opacity:.55;
+  }
+  .hide-btn:hover{opacity:1; border-color:var(--bad); color:var(--bad); background:var(--surface);}
+  .hidden-chip{
+    display:inline-flex; align-items:center; gap:7px; font-size:12.5px;
+    background:var(--surface-2); border:1px solid var(--line); border-radius:100px;
+    padding:5px 6px 5px 12px; margin:0 6px 6px 0;
+  }
+  .hidden-chip button{
+    flex:none; width:16px; height:16px; border-radius:50%; border:none; background:var(--line);
+    color:var(--text); font-size:10px; line-height:1; cursor:pointer; display:inline-flex;
+    align-items:center; justify-content:center;
+  }
+  .hidden-chip button:hover{background:var(--accent); color:var(--bg);}
   table.rank tbody tr:hover td{background:var(--surface-2);}
   table.rank tbody tr:hover td.col-name{background:var(--surface-2);}
   table.rank td.rk{color:var(--text-faint); font-family:var(--font-mono);}
@@ -377,6 +395,7 @@
         <li>Блок ЖК — комфорт, комфорт+, бизнес, делюкс, коммерция, бренд. Блок определяется по токену в UTM-кампании (например, <span class="mono">sp_…</span> — Южнопортовая), у расходов — по колонке «Проект».</li>
         <li>Год и месяц — год переключает, какая сетка месяцев видна, а не что выбрано: можно посмотреть, например, декабрь 2025 и январь 2026 вместе — переключитесь на 2025, отметьте декабрь, переключитесь на 2026, отметьте январь. У года, где что-то выбрано, но он сейчас не открыт, появляется подпись «выбрано: N». Для месяцев без данных Метрики рейтинг Score не строится: показывается бюджет (расход с НДС, показы, клики) и сделки.</li>
         <li>Несколько месяцев суммируются (отказы и время на сайте усредняются с весом по кликам).</li>
+        <li>Кнопка ✕ рядом с названием площадки в таблице — скрывает её из ранкера: площадка перестаёт участвовать в рейтинге, в пересчёте Score (нормализация CPA/CPM больше не оглядывается на неё) и в боковых списках, как будто её нет в данных. Список скрытых — в панели «Скрытые площадки» слева, вернуть можно в один клик. Хранится в этом браузере, на общие данные не влияет.</li>
       </ul>
 
       <h3>Честно об ограничениях</h3>
@@ -479,6 +498,12 @@
       <div id="side-note-spend"></div>
       <div id="side-note-nopost"></div>
       <div id="side-note-deals"></div>
+    </div>
+
+    <div class="panel" id="hidden-panel" style="display:none">
+      <h2>Скрытые площадки</h2>
+      <div class="sub">Не участвуют в рейтинге и не влияют на его расчёт — как будто их нет в данных</div>
+      <div id="hidden-list"></div>
     </div>
   </aside>
 
@@ -585,6 +610,16 @@ let selectedMonths = new Set([LAST_MONTH]);
 let selectedBlock = 'all';
 const selectedConv = new Set(['deal']); // фиксировано, переключателя пока нет
 let PLATFORMS = [], SPEND_ONLY = [], NO_POST = [], CONV_ONLY = [];
+
+// площадки, скрытые из ранкера вручную — не участвуют ни в рейтинге, ни в боковых списках,
+// ни в нормализации Score/CPM; хранится в этом браузере (per-viewer), не в данных
+let hiddenPlatforms = new Set();
+try { hiddenPlatforms = new Set(JSON.parse(localStorage.getItem('hiddenPlatforms') || '[]')); } catch(e){}
+function saveHiddenPlatforms(){
+  try { localStorage.setItem('hiddenPlatforms', JSON.stringify([...hiddenPlatforms])); } catch(e){}
+}
+function hidePlatform(p){ hiddenPlatforms.add(p); saveHiddenPlatforms(); applySelection(); }
+function unhidePlatform(p){ hiddenPlatforms.delete(p); saveHiddenPlatforms(); applySelection(); }
 let budgetMode = false;   // true, если среди выбранных месяцев есть месяц без конверсий и Метрики — показываем только бюджет
 
 // сведение выбранных месяцев и блока по площадкам: расход/показы/клики/конверсии суммируются,
@@ -595,6 +630,7 @@ function aggregate(){
   keys.forEach(k => {
     const m = DATA.months[k];
     m.rows.forEach(r => {
+      if (hiddenPlatforms.has(r.p)) return;
       if (selectedBlock !== 'all' && r.b !== selectedBlock) return;
       const a = acc[r.p] || (acc[r.p] = { platform:r.p, cost:0, impr:0, clicks:0, deal:0, meet:0, call:0,
         video:0, banner:0, tgb:0, bW:0, tW:0, pcClicks:0 });
@@ -815,6 +851,7 @@ function render(){
   SCORED.forEach((r, i) => { r.rank = i + 1; });
   renderTable();
   renderSideLists();
+  renderHiddenList();
 }
 
 // ---- таблица рейтинга: колонки, сортировка, тепловая подсветка ----
@@ -935,7 +972,7 @@ function renderTable(){
   tbody.innerHTML = rows.map(r => `
     <tr class="${r.rank === 1 ? 'top' : ''}">
       <td class="rk">${r.rank}</td>
-      <td class="col-name">${name(r.platform)}</td>
+      <td class="col-name"><button class="hide-btn" data-hide="${r.platform}" title="Скрыть ${name(r.platform)} из ранкера">✕</button>${name(r.platform)}</td>
       ${cols.map(c => {
         if (c.bar) return `<td class="score-cell"><div class="score-wrap">
           <div class="score-bar-track"><div class="score-bar-fill" style="width:${(r[c.key]/maxBar*100).toFixed(1)}%"></div></div>
@@ -987,6 +1024,21 @@ document.getElementById('rank-thead').addEventListener('click', e => {
     cycleSort(visibleColumns().find(c => c.key === key));
   }
 });
+
+document.getElementById('rank-tbody').addEventListener('click', e => {
+  const btn = e.target.closest('.hide-btn');
+  if (btn) hidePlatform(btn.dataset.hide);
+});
+
+function renderHiddenList(){
+  const panel = document.getElementById('hidden-panel');
+  if (!hiddenPlatforms.size){ panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  document.getElementById('hidden-list').innerHTML = [...hiddenPlatforms].sort((a, b) => name(a).localeCompare(name(b), 'ru'))
+    .map(p => `<span class="hidden-chip">${name(p)}<button data-show="${p}" title="Вернуть в рейтинг">↺</button></span>`).join('');
+  document.getElementById('hidden-list').querySelectorAll('button[data-show]').forEach(b =>
+    b.addEventListener('click', () => unhidePlatform(b.dataset.show)));
+}
 
 const PRESETS = {
   balanced:  { cpa:45, postclick:30, cpm:25 },
