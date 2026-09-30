@@ -74,10 +74,10 @@ ALIASES = {
     "яндекс go": "yandex_go",
     "media.yandex": "yandex",
     "media.yandex прайм баннер": "yandex",
-    "promopages.yandex.ru": "yandex",
+    "promopages.yandex.ru": "yandex_promopages",
     "video yandex (connected tv)": "yandex",
-    "дзен": "yandex",
-    "яндекс погода": "yandex",
+    "дзен": "dzen",
+    "яндекс погода": "yandex_weather",
     "adsheads": "adheads",
     "альфа-мобайл": "alfabank",
     "avito": "avito",
@@ -105,10 +105,10 @@ ALIASES = {
     # --- варианты UTM Source из Яндекс.Метрики (отчёт "Метки UTM", счётчики
     # ЖК 53197618 и Коммерция 100470605) ---
     "yandexgo": "yandex_go",
-    "yandex.promopages": "yandex", "promopages": "yandex",
-    "yandex_maps": "yandex", "yandex_mapss": "yandex",
-    "yandex_apartments": "yandex", "yandex_appartments": "yandex",
-    "yandex-pogoda": "yandex", "yandexsmartcamera": "yandex", "dzen": "yandex",
+    "yandex.promopages": "yandex_promopages", "promopages": "yandex_promopages",
+    "yandex_maps": "yandex_maps", "yandex_mapss": "yandex_maps",
+    "yandex_apartments": "yandex_maps", "yandex_appartments": "yandex_maps",
+    "yandex-pogoda": "yandex_weather", "yandexsmartcamera": "yandex_maps", "dzen": "dzen",
     "2gis_maps": "2gis",
     "pronovostroy": "pronovostroiki",
     "first-data": "first_data",
@@ -123,7 +123,7 @@ ALIASES = {
     "vkvideo": "vk_video", "vk video": "vk_video",
 
     # --- названия из свода сделок с датами (участия_встречи_звонки_pbi_2025_2026_свод) ---
-    "яндекс. метка": "yandex_metka", "яндекс.карты": "yandex_maps_pin",
+    "яндекс. метка": "yandex_metka", "яндекс.карты": "yandex_maps",
     "яндекс бизнес": "yandex_business", "яндекс навигатор баннер": "yandex_navigator",
     "я.геосервисы": "yandex_geo", "google my business": "google_business",
     "яндекс": "yandex", "cian перетяжка": "cian", "cian паралакс": "cian",
@@ -131,7 +131,7 @@ ALIASES = {
     "yandex_небоскреб_регионы": "yandex_skyline_regions", "yandex небоскреб регионы": "yandex_skyline_regions",
 
     # --- названия из бюджетного свода «Бюджеты свод 25-26» ---
-    "video.yandex": "yandex", "promopages.yandex": "yandex", "geomedia.yandex": "yandex",
+    "video.yandex": "yandex", "promopages.yandex": "yandex_promopages", "geomedia.yandex": "yandex_maps",
     "vendor.market.yandex": "yandexmarket",
     "ads-heads": "adheads",
     "mts (smart tv)": "mts",
