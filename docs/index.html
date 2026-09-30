@@ -375,7 +375,7 @@
         <li>Ползунки весов — расставляете приоритеты (например, «CPA важнее всего»), рейтинг пересчитывается мгновенно на тех же реальных данных, без перезагрузки.</li>
         <li>Кнопки-пресеты — готовые сценарии расстановки весов.</li>
         <li>Блок ЖК — комфорт, комфорт+, бизнес, делюкс, коммерция, бренд. Блок определяется по токену в UTM-кампании (например, <span class="mono">sp_…</span> — Южнопортовая), у расходов — по колонке «Проект».</li>
-        <li>Год и месяц — сначала выбираете год, затем один или несколько месяцев (или «Весь год»). Для месяцев без данных Метрики рейтинг Score не строится: показывается бюджет (расход с НДС, показы, клики) и сделки.</li>
+        <li>Год и месяц — год переключает, какая сетка месяцев видна, а не что выбрано: можно посмотреть, например, декабрь 2025 и январь 2026 вместе — переключитесь на 2025, отметьте декабрь, переключитесь на 2026, отметьте январь. У года, где что-то выбрано, но он сейчас не открыт, появляется подпись «выбрано: N». Для месяцев без данных Метрики рейтинг Score не строится: показывается бюджет (расход с НДС, показы, клики) и сделки.</li>
         <li>Несколько месяцев суммируются (отказы и время на сайте усредняются с весом по кликам).</li>
       </ul>
 
@@ -628,12 +628,17 @@ function aggregate(){
 
 function periodLabelText(){
   const keys = MONTH_ORDER.filter(k => selectedMonths.has(k));
-  const year = selectedYear;
   const prefix = budgetMode ? 'бюджетные данные · ' : 'реальные данные · ';
-  const all = monthsOfYear(year);
-  if (keys.length === 1) return prefix + monthName(keys[0]).toLowerCase() + ' ' + year;
-  if (keys.length === all.length) return `${prefix}${year}, все месяцы (${monthName(keys[0]).slice(0,3).toLowerCase()}–${monthName(keys[keys.length-1]).slice(0,3).toLowerCase()})`;
-  return prefix + keys.map(k => monthName(k).slice(0,3).toLowerCase()).join(' + ') + ' ' + year;
+  if (keys.length === 1) return prefix + monthName(keys[0]).toLowerCase() + ' ' + DATA.months[keys[0]].year;
+  if (keys.length === MONTH_ORDER.length) return prefix + `весь период (${monthName(keys[0]).slice(0,3).toLowerCase()} ${String(DATA.months[keys[0]].year).slice(2)}–${monthName(keys[keys.length-1]).slice(0,3).toLowerCase()} ${String(DATA.months[keys[keys.length-1]].year).slice(2)})`;
+  const years = [...new Set(keys.map(k => DATA.months[k].year))];
+  if (years.length === 1){
+    const all = monthsOfYear(years[0]);
+    if (keys.length === all.length) return `${prefix}${years[0]}, все месяцы (${monthName(keys[0]).slice(0,3).toLowerCase()}–${monthName(keys[keys.length-1]).slice(0,3).toLowerCase()})`;
+    return prefix + keys.map(k => monthName(k).slice(0,3).toLowerCase()).join(' + ') + ' ' + years[0];
+  }
+  // выбор захватывает несколько лет — у каждого месяца свой год, чтобы не было неоднозначности
+  return prefix + keys.map(k => monthName(k).slice(0,3).toLowerCase() + ' ' + String(DATA.months[k].year).slice(2)).join(' + ');
 }
 
 function chip(attrs, active, html, cls='', disabled=false){
@@ -642,7 +647,11 @@ function chip(attrs, active, html, cls='', disabled=false){
 
 function renderFilters(){
   const ybox = document.getElementById('year-tabs');
-  ybox.innerHTML = YEARS.map(y => chip(`data-year="${y}"`, selectedYear === y, y)).join('');
+  ybox.innerHTML = YEARS.map(y => {
+    const cnt = monthsOfYear(y).filter(k => selectedMonths.has(k)).length;
+    const sub = (y !== selectedYear && cnt > 0) ? `<span class="chip-sub">выбрано: ${cnt}</span>` : '';
+    return chip(`data-year="${y}"`, selectedYear === y, `${y}${sub}`, sub ? 'tall' : '');
+  }).join('');
   ybox.querySelectorAll('button[data-year]').forEach(b => b.addEventListener('click', () => setYear(+b.dataset.year)));
 
   const yearMonths = monthsOfYear(selectedYear);
@@ -679,7 +688,10 @@ function applySelection(){
 function setYear(y){
   selectedYear = y;
   const ms = monthsOfYear(y);
-  selectedMonths = new Set([ms[ms.length - 1]]);   // по умолчанию — последний месяц года
+  // переключение года — это просто навигация по сетке месяцев; уже выбранные месяцы
+  // (в том числе из других лет) не сбрасываются. Если в этом году ещё ничего не
+  // выбрано — для удобства сразу подставляем его последний месяц.
+  if (!ms.some(k => selectedMonths.has(k))) selectedMonths.add(ms[ms.length - 1]);
   applySelection();
 }
 function toggleMonth(key){
@@ -692,7 +704,13 @@ function toggleMonth(key){
 }
 function toggleAllMonths(){
   const ms = monthsOfYear(selectedYear);
-  selectedMonths = ms.every(k => selectedMonths.has(k)) ? new Set([ms[ms.length - 1]]) : new Set(ms);
+  if (ms.every(k => selectedMonths.has(k))){
+    // снимаем месяцы этого года; месяцы из других лет остаются выбранными
+    const rest = [...selectedMonths].filter(k => !ms.includes(k));
+    selectedMonths = new Set(rest.length ? rest : [ms[ms.length - 1]]); // хотя бы один месяц должен остаться
+  } else {
+    ms.forEach(k => selectedMonths.add(k));
+  }
   applySelection();
 }
 const convWord = () => selectedConv.size === 1 ? CONV.find(c => selectedConv.has(c.k)).label.toLowerCase() : 'конверсий';
