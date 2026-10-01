@@ -34,7 +34,7 @@ from collections import defaultdict
 
 import openpyxl
 
-from normalize_platforms import ALIASES, normalize_platform
+from normalize_platforms import ALIASES, NO_FORMAT_SPLIT, normalize_platform, split_platform
 
 warnings.filterwarnings("ignore")
 
@@ -222,7 +222,7 @@ def load_spend(path, sheet):
             cost = num(r[ci])
             if cost:
                 break
-        out.append({"platform": normalize_platform(r[idx["Площадка"]]), "block": block, "project": project,
+        out.append({"platform": split_platform(r[idx["Площадка"]]), "block": block, "project": project,
                     "cost": cost, "impr": num(r[idx["Показы"]]), "clicks": num(r[idx["Клики"]])})
     return out, unknown_projects
 
@@ -277,6 +277,31 @@ FORMAT_MAP = {
     "video": "video", "olv": "video", "ctv": "video",
     "banner": "banner", "banners": "banner", "richmedia": "banner",
 }
+FORMAT_BUCKET = {"video": "video", "banner": "display", "tgb": "display", "branding": "display"}
+
+
+def platform_with_format(platform, fmt):
+    """platform + формат кампании (см. FORMAT_MAP) -> ключ площадки с суффиксом __video/__display,
+    если формат определён и это не площадка, которая уже сама является отдельным видео-продуктом
+    (см. NO_FORMAT_SPLIT)."""
+    bucket = FORMAT_BUCKET.get(fmt)
+    if not bucket or platform in NO_FORMAT_SPLIT:
+        return platform
+    return f"{platform}__{bucket}"
+
+
+def route_conv_platform(acc, block, platform):
+    """Куда отнести сделку/встречу/звонок для (block, platform): конверсии сами по себе не знают
+    формат так же надёжно, как расход (формат площадки в бюджете указан только у ~20% строк) —
+    поэтому не делим их независимо, а подселяем к уже существующему расходу. Если под этой
+    площадкой в этом блоке уже есть расход video ИЛИ display — используем его (при наличии обоих
+    берём тот, где расход больше); иначе — обычная (неразбитая) площадка."""
+    candidates = [(fmt, acc.get((block, f"{platform}__{fmt}"))) for fmt in ("video", "display")]
+    candidates = [(fmt, a) for fmt, a in candidates if a is not None and a.get("cost", 0) > 0]
+    if not candidates:
+        return platform
+    fmt, _ = max(candidates, key=lambda kv: kv[1]["cost"])
+    return f"{platform}__{fmt}"
 MONTH_TOKEN = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6, "june": 6,
                "jul": 7, "july": 7, "aug": 8, "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12}
 MONTH_TOKEN_RE = re.compile(r"^([a-z]+)(\d{2})$", re.I)
@@ -402,7 +427,8 @@ def load_deals_meetings_calls(path):
                 skipped["stale"] += conv
                 continue
             segs = [x.strip() for x in str(campaign).split("|")]
-            my = token_month_year(segs[-1].split("_")) if segs else None
+            toks = segs[-1].split("_") if segs else []
+            my = token_month_year(toks)
             if my is None:
                 skipped["month"] += conv
                 continue
@@ -450,7 +476,7 @@ def load_budget(path, skip_keys=(), deals_by_month=None, fmt_by_month=None, mc_b
             if block is None:
                 unknown.add(str(r[0]).strip())
                 block = "none"
-            a = acc[(block, normalize_platform(str(r[2]).strip()))]
+            a = acc[(block, split_platform(str(r[2]).strip()))]
             a[0] += to_num(r[3]) * VAT
             a[1] += to_num(r[4])
             a[2] += to_num(r[6])
@@ -461,15 +487,17 @@ def load_budget(path, skip_keys=(), deals_by_month=None, fmt_by_month=None, mc_b
         rows_out = {(b, p): {"b": b, "p": p, "cost": round(v[0], 2), "impr": int(v[1]), "clicks": int(v[2]),
                              "deal": 0, "meet": 0, "call": 0} for (b, p), v in acc.items()}
         for (b, p), deals in deals_by_month.get(key, {}).items():
-            rows_out.setdefault((b, p), {"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, "deal": 0, "meet": 0, "call": 0})
-            rows_out[(b, p)]["deal"] += deals
+            rp = route_conv_platform(rows_out, b, p)
+            rows_out.setdefault((b, rp), {"b": b, "p": rp, "cost": 0.0, "impr": 0, "clicks": 0, "deal": 0, "meet": 0, "call": 0})
+            rows_out[(b, rp)]["deal"] += deals
         for (b, p), fmt in fmt_by_month.get(key, {}).items():
             if (b, p) in rows_out:
                 rows_out[(b, p)]["fmt"] = fmt
         for (b, p), mc in mc_by_month.get(key, {}).items():
-            rows_out.setdefault((b, p), {"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, "deal": 0, "meet": 0, "call": 0})
-            rows_out[(b, p)]["meet"] += mc.get("meet", 0)
-            rows_out[(b, p)]["call"] += mc.get("call", 0)
+            rp = route_conv_platform(rows_out, b, p)
+            rows_out.setdefault((b, rp), {"b": b, "p": rp, "cost": 0.0, "impr": 0, "clicks": 0, "deal": 0, "meet": 0, "call": 0})
+            rows_out[(b, rp)]["meet"] += mc.get("meet", 0)
+            rows_out[(b, rp)]["call"] += mc.get("call", 0)
         out[key] = {"year": year, "month": month, "rows": [rows_out[k] for k in sorted(rows_out)]}
     # месяцы со сделками, но без листа в бюджетном своде (сейчас — январь 2025): отдельная запись,
     # только сделки, без расхода/показов/кликов
@@ -662,6 +690,10 @@ def main():
                 harvest, _ = load_budget(args.budget, skip_keys=set())
                 for m in harvest.values():
                     known_platforms.update(r["p"] for r in m["rows"])
+            # плюс базовые (без __video/__display) варианты — чтобы конверсии без формата в
+            # кампании по-прежнему находили площадку, даже если весь расход по ней распался
+            # на video/display и «голой» формы в бюджете не осталось
+            known_platforms |= {p.split("__")[0] for p in known_platforms if "__" in p}
         return known_platforms
 
     deals_tokenized, fmt_tokenized = {}, {}
@@ -694,10 +726,11 @@ def main():
             if c["month"] == src_month:
                 acc[(c["block"], c["platform"])][c["kind"]] += c["conv"]
         for (b, p), deals in deal_overrides.get(key, {}).items():
-            acc[(b, p)]["deal"] += deals
+            acc[(b, route_conv_platform(acc, b, p))]["deal"] += deals
         for (b, p), mc in mc_overrides.get(key, {}).items():
-            acc[(b, p)]["meet"] += mc.get("meet", 0)
-            acc[(b, p)]["call"] += mc.get("call", 0)
+            a = acc[(b, route_conv_platform(acc, b, p))]
+            a["meet"] += mc.get("meet", 0)
+            a["call"] += mc.get("call", 0)
         rows = [{"b": b, "p": p, "cost": round(v["cost"], 2), "impr": int(v["impr"]), "clicks": int(v["clicks"]),
                  "deal": v["deal"], "meet": v["meet"], "call": v["call"],
                  **({"fmt": fmt_tokenized[key][(b, p)]} if fmt_tokenized.get(key, {}).get((b, p)) else {})}

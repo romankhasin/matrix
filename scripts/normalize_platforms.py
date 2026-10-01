@@ -164,6 +164,51 @@ def normalize_platform(raw: str) -> str:
     return re.sub(r"\s+", "_", key)
 
 
+# --- разбивка площадки на Video/Display, только там, где формат явно виден в самом названии
+# (не в кампании — там есть отдельный token_format() в build_dashboard_data.py). Используем
+# разделитель "__", чтобы не столкнуться с уже существующими ключами вроде "vk_video"
+# (это отдельная реальная площадка, а не video-вариант "vk").
+VIDEO_MARKERS = [
+    "video", "видео", "olv", "preroll", "прерол", "ctv",
+    "connected tv", "smart tv", "smarttv", "смарт тв", "смарт-тв",
+    "in-stream", "instream", "online cinema", "онлайн кинотеатр",
+]
+DISPLAY_MARKERS = [
+    "banner", "баннер", "banners", "tgb", "тгб", "richmedia", "rich media", "рич медиа",
+    "display", "дисплей", "branding", "брендирование", "брендинг",
+]
+
+
+def platform_format(raw):
+    """Формат по подстрокам в сыром названии площадки: 'video' / 'display' / None (неоднозначно
+    или не определено — например 'media.yandex', 'Astralab' без уточнения формата)."""
+    if not raw:
+        return None
+    s = re.sub(r"\s+", " ", raw.strip().lower())
+    is_video = any(m in s for m in VIDEO_MARKERS)
+    is_display = any(m in s for m in DISPLAY_MARKERS)
+    if is_video and not is_display:
+        return "video"
+    if is_display and not is_video:
+        return "display"
+    return None
+
+
+# площадки, которые уже сами по себе являются отдельным видео-продуктом (не общая площадка +
+# формат) — их дальше не делим, иначе получится двойное указание формата вроде "vk_video__video"
+NO_FORMAT_SPLIT = {"vk_video"}
+
+
+def split_platform(raw: str) -> str:
+    """Канонический ключ площадки с учётом формата: 'mts' -> 'mts', но 'Mts.ru OLV' -> 'mts__video'.
+    Используется только там, где формат берём из самого названия площадки (расходы/бюджеты)."""
+    base = normalize_platform(raw)
+    if base in NO_FORMAT_SPLIT:
+        return base
+    fmt = platform_format(raw)
+    return f"{base}__{fmt}" if fmt else base
+
+
 if __name__ == "__main__":
     tests = ["Cian ТГБ", "cian", "Novostroy-M.ru медийка", "yandex_go", "Move", "move.ru", "Не указан"]
     for t in tests:
