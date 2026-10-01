@@ -291,6 +291,13 @@
   .month-tabs button.all-btn.active{border-style:solid;}
   .month-tabs button.all-btn.active::before{border-style:solid;}
 
+  /* компактный вариант — строки по годам, чтобы 12 месяцев + «Весь год» помещались в одну строку */
+  .month-tabs.compact{gap:5px;}
+  .month-tabs.compact button{font-size:11px; padding:5px 9px 5px 22px; min-height:26px; border-radius:8px;}
+  .month-tabs.compact button::before{width:11px; height:11px; left:6px; border-radius:3px;}
+  .month-tabs.compact button.active::after{left:9.5px; width:3px; height:6px;}
+  .month-tabs.compact .chip-sub{font-size:9px;}
+
   .month-year-row{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
   .month-year-row:last-child{margin-bottom:0;}
   .month-year-row .month-tabs{margin-bottom:0; flex:1;}
@@ -755,7 +762,7 @@ function renderFilters(){
     const chips = yearMonths.map(k => chip(`data-month="${k}"`, selectedMonths.has(k),
         `${monthName(k)}${DATA.months[k].full ? '' : '<span class="chip-sub">только бюджет</span>'}`, DATA.months[k].full ? '' : 'tall')).join('')
       + chip(`data-all-year="${y}"`, allMonths, `Весь ${y}`, 'all-btn');
-    return `<div class="month-year-row"><span class="month-year-label">${y}</span><div class="month-tabs">${chips}</div></div>`;
+    return `<div class="month-year-row"><span class="month-year-label">${y}</span><div class="month-tabs compact">${chips}</div></div>`;
   }).join('');
   mbox.querySelectorAll('button[data-month]').forEach(b => b.addEventListener('click', () => toggleMonth(b.dataset.month)));
   mbox.querySelectorAll('button[data-all-year]').forEach(b => b.addEventListener('click', () => toggleAllMonths(+b.dataset.allYear)));
@@ -1182,7 +1189,7 @@ function renderTrendMonths(){
     const allSel = ms.every(k => trendMonths.has(k));
     const chips = ms.map(k => chip(`data-m="${k}"`, trendMonths.has(k), monthName(k))).join('')
       + chip(`data-all-year="${y}"`, allSel, `Весь ${y}`, 'all-btn');
-    return `<div class="month-year-row"><span class="month-year-label">${y}</span><div class="month-tabs">${chips}</div></div>`;
+    return `<div class="month-year-row"><span class="month-year-label">${y}</span><div class="month-tabs compact">${chips}</div></div>`;
   }).join('');
   mbox.querySelectorAll('button[data-m]').forEach(btn => btn.addEventListener('click', () => {
     const k = btn.dataset.m;
