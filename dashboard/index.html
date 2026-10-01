@@ -17,6 +17,8 @@
     --teal-dim:#1c3a37;
     --good:#6fcf97;
     --bad:#eb6b6b;
+    --blue:#5b9bd9;
+    --blue-dim:#1b3252;
     --font-display:'Fraunces', Georgia, serif;
     --font-body:'IBM Plex Sans', -apple-system, sans-serif;
     --font-mono:'IBM Plex Mono', 'SF Mono', monospace;
@@ -36,13 +38,15 @@
       --teal-dim:#dff2ef;
       --good:#2f9e5c;
       --bad:#c94848;
+      --blue:#2563a8;
+      --blue-dim:#9cc3ea;
     }
   }
   :root[data-theme="light"]{
     --bg:#f5f3ee; --surface:#ffffff; --surface-2:#fbfaf7; --line:#e2ddd2;
     --text:#20242c; --text-dim:#5f6672; --text-faint:#8b93a0;
     --accent:#b8791f; --accent-dim:#f3e2c4; --teal:#0f8c80; --teal-dim:#dff2ef;
-    --good:#2f9e5c; --bad:#c94848;
+    --good:#2f9e5c; --bad:#c94848; --blue:#2563a8; --blue-dim:#9cc3ea;
   }
 
   *{box-sizing:border-box;}
@@ -394,6 +398,7 @@
   .lag-dist{display:flex; align-items:flex-end; gap:3px; height:120px; padding:8px 0 0; border-bottom:1px solid var(--line);}
   .lag-dist .bar{flex:1; background:linear-gradient(0deg,var(--teal),var(--accent)); border-radius:2px 2px 0 0; min-height:1px; position:relative;}
   .lag-dist .bar.med{outline:1.5px solid var(--text);}
+  .lag-dist.blue .bar{background:linear-gradient(0deg,var(--blue-dim),var(--blue));}
   .lag-axis{display:flex; gap:3px; font-family:var(--font-mono); font-size:9.5px; color:var(--text-faint); margin-bottom:4px;}
   .lag-axis span{flex:1; text-align:center;}
   table.lagt{width:100%; border-collapse:collapse; font-size:12.5px;}
@@ -1536,7 +1541,7 @@ const LAG = {"n": 3336, "total": 4835, "mean": 8.2, "median": 6.0, "p25": 3.0, "
      <div class="lag-axis">${LAG.dist.map((v,i)=>`<span>${i%3===0?i:''}</span>`).join('')}</div>
      <div class="sub" style="font-size:11px;color:var(--text-faint)">месяцев между кликом и договором · рамка — медиана</div>
      <h3>Динамика сделок по дате договора</h3>
-     <div class="lag-dist">${LAG.sign.map(([l,v])=>`<div class="bar" style="height:${(v/mxSign*100).toFixed(1)}%" title="${l}: ${v}"></div>`).join('')}</div>
+     <div class="lag-dist blue">${LAG.sign.map(([l,v])=>`<div class="bar" style="height:${(v/mxSign*100).toFixed(1)}%" title="${l}: ${v}"></div>`).join('')}</div>
      <div class="lag-axis">${LAG.sign.map(([l])=>`<span>${l}</span>`).join('')}</div>
      <div class="sub" style="font-size:11px;color:var(--text-faint)">сделок (участий), подписанных в этом месяце — по факту даты договора, не по месяцу клика</div>
      <h3>По площадкам (от быстрых к медленным, ≥30 участий)</h3>
