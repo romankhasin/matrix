@@ -1364,6 +1364,33 @@ function trendSeries(){
   });
 }
 
+// раздвигает две подписи по вертикали, если они оказались ближе minGap друг к другу (столбец и
+// точка CPA — независимые шкалы, их подписи иногда сходятся на одной высоте и сливаются в кашу)
+function spreadLabels(yA, yB, minGap){
+  const d = yB - yA;
+  if (Math.abs(d) >= minGap) return [yA, yB];
+  const push = (minGap - Math.abs(d)) / 2 + 0.5;
+  return d >= 0 ? [yA - push, yB + push] : [yA + push, yB - push];
+}
+
+// когда столбцов много, подписи (и соседних колонок, и своя-над-столбцом/своя-над-точкой) шире
+// слота колонки и наезжают друг на друга. items: [{key, x, y, text}] — решаем, какие показывать,
+// по одному общему списку сразу для обоих рядов подписей (чтобы бар одной колонки не наезжал на
+// CPA соседней). Идём от последней колонки к первой — приоритет у свежих месяцев; занятые
+// прямоугольники копим и пропускаем всё, что в них попадает. Точные цифры в любом случае видны
+// в подсказке при наведении.
+function placeLabels(items, charW = 6.3, pad = 6){
+  const shown = new Set();
+  const placed = [];
+  [...items].sort((a, b) => b.x - a.x).forEach(it => {
+    const halfW = (it.text.length * charW + pad) / 2;
+    const box = { x0: it.x - halfW, x1: it.x + halfW, y0: it.y - 11, y1: it.y + 3 };
+    const hit = placed.some(p => box.x0 < p.x1 && box.x1 > p.x0 && box.y0 < p.y1 && box.y1 > p.y0);
+    if (!hit){ shown.add(it.key); placed.push(box); }
+  });
+  return shown;
+}
+
 function renderTrend(){
   const series = trendSeries();
   const box = document.getElementById('trend-chart');
@@ -1401,18 +1428,33 @@ function renderTrend(){
       `<text class="trend-axis-label r" x="${W - padR + 8}" y="${gy + 4}" text-anchor="start">${short(maxCpa * f)}</text>`;
   }).join('');
 
+  // позиции подписей считаем заранее для столбца и точки CPA сразу парой — раздвигаем, если сошлись
+  const colLabels = series.map(s => {
+    let barY = s.conv > 0 ? Math.max(yConv(s.conv) - 8, padT + 10) : null;
+    let cpaY = s.cpa != null ? yCpa(s.cpa) - 10 : null;
+    if (barY != null && cpaY != null) [barY, cpaY] = spreadLabels(barY, cpaY, 15);
+    return { barY: barY != null ? Math.max(barY, padT + 10) : null, cpaY: cpaY != null ? Math.max(cpaY, padT + 2) : null };
+  });
+
+  const labelItems = [];
+  series.forEach((s, i) => {
+    if (s.conv > 0) labelItems.push({ key: 'bar' + i, x: x(i), y: colLabels[i].barY, text: fmt(s.conv) });
+    if (s.cpa != null) labelItems.push({ key: 'cpa' + i, x: x(i), y: colLabels[i].cpaY, text: short(s.cpa) });
+  });
+  const shownLabels = placeLabels(labelItems);
+
   const bars = series.map((s, i) => `
     <g class="trend-col" data-i="${i}">
       <rect x="${(x(i) - slot/2).toFixed(1)}" y="${padT}" width="${slot.toFixed(1)}" height="${plotH}" fill="transparent"/>
       ${s.conv > 0 ? `<rect class="trend-bar" x="${(x(i) - barW/2).toFixed(1)}" y="${yConv(s.conv).toFixed(1)}" width="${barW.toFixed(1)}" height="${(padT + plotH - yConv(s.conv)).toFixed(1)}" rx="2"/>
-      <text class="trend-bar-label" x="${x(i).toFixed(1)}" y="${Math.max(yConv(s.conv) - 8, padT + 10).toFixed(1)}" text-anchor="middle">${fmt(s.conv)}</text>` : ''}
+      ${shownLabels.has('bar' + i) ? `<text class="trend-bar-label" x="${x(i).toFixed(1)}" y="${colLabels[i].barY.toFixed(1)}" text-anchor="middle">${fmt(s.conv)}</text>` : ''}` : ''}
     </g>`).join('');
 
   const linePts = series.map((s, i) => s.cpa != null ? `${x(i).toFixed(1)},${yCpa(s.cpa).toFixed(1)}` : null).filter(Boolean);
   const line = linePts.length > 1 ? `<polyline class="trend-line" points="${linePts.join(' ')}"/>` : '';
   const dots = series.map((s, i) => s.cpa == null ? '' : `
     <circle class="trend-dot" cx="${x(i).toFixed(1)}" cy="${yCpa(s.cpa).toFixed(1)}" r="3.5"/>
-    <text class="trend-cpa-label" x="${x(i).toFixed(1)}" y="${(yCpa(s.cpa) - 10).toFixed(1)}" text-anchor="middle">${short(s.cpa)}</text>`).join('');
+    ${shownLabels.has('cpa' + i) ? `<text class="trend-cpa-label" x="${x(i).toFixed(1)}" y="${colLabels[i].cpaY.toFixed(1)}" text-anchor="middle">${short(s.cpa)}</text>` : ''}`).join('');
 
   const xLabels = series.map((s, i) => `<text class="trend-axis-label" x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${s.label}</text>`).join('');
 
@@ -1482,18 +1524,32 @@ function renderCumulative(){
       `<text class="trend-axis-label r" x="${W - padR + 8}" y="${gy + 4}" text-anchor="start">${short(maxCpa * f)}</text>`;
   }).join('');
 
+  const colLabels = series.map(s => {
+    let barY = s.cumCost > 0 ? Math.max(yCost(s.cumCost) - 8, padT + 10) : null;
+    let cpaY = s.cpa != null ? yCpa(s.cpa) - 10 : null;
+    if (barY != null && cpaY != null) [barY, cpaY] = spreadLabels(barY, cpaY, 15);
+    return { barY: barY != null ? Math.max(barY, padT + 10) : null, cpaY: cpaY != null ? Math.max(cpaY, padT + 2) : null };
+  });
+
+  const labelItems = [];
+  series.forEach((s, i) => {
+    if (s.cumCost > 0) labelItems.push({ key: 'bar' + i, x: x(i), y: colLabels[i].barY, text: short(s.cumCost) });
+    if (s.cpa != null) labelItems.push({ key: 'cpa' + i, x: x(i), y: colLabels[i].cpaY, text: short(s.cpa) });
+  });
+  const shownLabels = placeLabels(labelItems);
+
   const bars = series.map((s, i) => `
     <g class="trend-col" data-i="${i}">
       <rect x="${(x(i) - slot/2).toFixed(1)}" y="${padT}" width="${slot.toFixed(1)}" height="${plotH}" fill="transparent"/>
       ${s.cumCost > 0 ? `<rect class="cum-bar" x="${(x(i) - barW/2).toFixed(1)}" y="${yCost(s.cumCost).toFixed(1)}" width="${barW.toFixed(1)}" height="${(padT + plotH - yCost(s.cumCost)).toFixed(1)}" rx="2"/>
-      <text class="trend-bar-label" x="${x(i).toFixed(1)}" y="${Math.max(yCost(s.cumCost) - 8, padT + 10).toFixed(1)}" text-anchor="middle">${short(s.cumCost)}</text>` : ''}
+      ${shownLabels.has('bar' + i) ? `<text class="trend-bar-label" x="${x(i).toFixed(1)}" y="${colLabels[i].barY.toFixed(1)}" text-anchor="middle">${short(s.cumCost)}</text>` : ''}` : ''}
     </g>`).join('');
 
   const linePts = series.map((s, i) => s.cpa != null ? `${x(i).toFixed(1)},${yCpa(s.cpa).toFixed(1)}` : null).filter(Boolean);
   const line = linePts.length > 1 ? `<polyline class="trend-line" points="${linePts.join(' ')}"/>` : '';
   const dots = series.map((s, i) => s.cpa == null ? '' : `
     <circle class="trend-dot" cx="${x(i).toFixed(1)}" cy="${yCpa(s.cpa).toFixed(1)}" r="3.5"/>
-    <text class="trend-cpa-label" x="${x(i).toFixed(1)}" y="${(yCpa(s.cpa) - 10).toFixed(1)}" text-anchor="middle">${short(s.cpa)}</text>`).join('');
+    ${shownLabels.has('cpa' + i) ? `<text class="trend-cpa-label" x="${x(i).toFixed(1)}" y="${colLabels[i].cpaY.toFixed(1)}" text-anchor="middle">${short(s.cpa)}</text>` : ''}`).join('');
 
   const xLabels = series.map((s, i) => `<text class="trend-axis-label" x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${s.label}</text>`).join('');
 
