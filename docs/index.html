@@ -1157,11 +1157,13 @@ function trendPlatformOptions(){
   MONTH_ORDER.forEach(k => DATA.months[k].rows.forEach(r => {
     if (r.cost > 0 || r.deal > 0) totals[r.p] = (totals[r.p] || 0) + r.cost;
   }));
-  return Object.keys(totals).sort((a, b) => totals[b] - totals[a]);
+  const platforms = Object.keys(totals).sort((a, b) => name(a).localeCompare(name(b), 'ru'));
+  const byCost = [...platforms].sort((a, b) => totals[b] - totals[a]);
+  return { platforms, defaultPlatform: byCost[0] };
 }
 
-const TREND_PLATFORMS = trendPlatformOptions();
-let trendPlatform = TREND_PLATFORMS[0];
+const { platforms: TREND_PLATFORMS, defaultPlatform: TREND_DEFAULT_PLATFORM } = trendPlatformOptions();
+let trendPlatform = TREND_DEFAULT_PLATFORM;
 let trendBlock = 'all';
 // по умолчанию — последние 6 месяцев с данными, дальше выбор произвольный
 let trendMonths = new Set(MONTH_ORDER.slice(-6));
