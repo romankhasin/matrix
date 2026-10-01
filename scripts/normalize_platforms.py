@@ -10,7 +10,6 @@ special-casing them downstream.
 """
 
 import re
-from collections import defaultdict
 
 # raw name (lowercased, trimmed) -> canonical platform key
 ALIASES = {
@@ -163,106 +162,6 @@ def normalize_platform(raw: str) -> str:
                 return ALIASES[key]
     # fallback: cleaned raw string, flagged for manual review via caller
     return re.sub(r"\s+", "_", key)
-
-
-# --- разбивка площадки на Video/Display, только там, где формат явно виден в самом названии
-# (не в кампании — там есть отдельный token_format() в build_dashboard_data.py). Используем
-# разделитель "__", чтобы не столкнуться с уже существующими ключами вроде "vk_video"
-# (это отдельная реальная площадка, а не video-вариант "vk").
-VIDEO_MARKERS = [
-    "video", "видео", "olv", "preroll", "прерол", "ctv",
-    "connected tv", "smart tv", "smarttv", "смарт тв", "смарт-тв",
-    "in-stream", "instream", "online cinema", "онлайн кинотеатр",
-]
-DISPLAY_MARKERS = [
-    "banner", "баннер", "banners", "tgb", "тгб", "richmedia", "rich media", "рич медиа",
-    "display", "дисплей", "branding", "брендирование", "брендинг",
-]
-
-
-def platform_format(raw):
-    """Формат по подстрокам в сыром названии площадки: 'video' / 'display' / None (неоднозначно
-    или не определено — например 'media.yandex', 'Astralab' без уточнения формата)."""
-    if not raw:
-        return None
-    s = re.sub(r"\s+", " ", raw.strip().lower())
-    is_video = any(m in s for m in VIDEO_MARKERS)
-    is_display = any(m in s for m in DISPLAY_MARKERS)
-    if is_video and not is_display:
-        return "video"
-    if is_display and not is_video:
-        return "display"
-    return None
-
-
-# площадки, которые уже сами по себе являются отдельным видео-продуктом (не общая площадка +
-# формат) — их дальше не делим, иначе получится двойное указание формата вроде "vk_video__video"
-NO_FORMAT_SPLIT = {"vk_video"}
-
-
-def split_platform(raw: str) -> str:
-    """Канонический ключ площадки с учётом формата: 'mts' -> 'mts', но 'Mts.ru OLV' -> 'mts__video'.
-    Только по самой строке, без контекста остальных строк той же площадки — см. split_row() для
-    варианта, который не оставляет немаркированный «хвост» у площадок с известным форматом."""
-    base = normalize_platform(raw)
-    if base in NO_FORMAT_SPLIT:
-        return base
-    fmt = platform_format(raw)
-    return f"{base}__{fmt}" if fmt else base
-
-
-def compute_platform_formats(weighted_raws):
-    """Первый проход по ВСЕМ сырым строкам расхода площадки (по всем месяцам и источникам разом —
-    отдельная строка иногда вообще не упоминает формат, а в другом месяце той же площадки он есть).
-    Нужно, чтобы у площадки с определяемым форматом не оставалось третьей, немаркированной строки
-    в дашборде — только видео/баннеры (или один из них, если второй формат нигде не встречается).
-
-    weighted_raws: итерируемое (raw_name, cost).
-    Возвращает (format_only, format_ratio):
-      format_only[base] = 'video'|'display' — у площадки виден только один формат по всем
-        источникам; немаркированные строки относим к нему же (площадка «на самом деле» всегда
-        такого формата, просто не каждая строка это проговаривает).
-      format_ratio[base] = {'video': w, 'display': w} — у площадки видны оба формата;
-        немаркированные строки делить не на что, кроме как пропорционально уже промаркированному
-        расходу — единственный доступный на этом уровне сигнал (кампания/токен здесь не виден).
-    """
-    cost_by_fmt = defaultdict(lambda: defaultdict(float))
-    for raw, cost in weighted_raws:
-        base = normalize_platform(raw)
-        if base in NO_FORMAT_SPLIT:
-            continue
-        fmt = platform_format(raw)
-        if fmt:
-            cost_by_fmt[base][fmt] += max(cost or 0.0, 0.0)
-    format_only, format_ratio = {}, {}
-    for base, by_fmt in cost_by_fmt.items():
-        if len(by_fmt) == 1:
-            format_only[base] = next(iter(by_fmt))
-            continue
-        total = sum(by_fmt.values())
-        format_ratio[base] = {f: c / total for f, c in by_fmt.items()} if total > 0 \
-            else {f: 1 / len(by_fmt) for f in by_fmt}  # расход по обоим форматам нулевой — делим поровну
-    return format_only, format_ratio
-
-
-def split_row(raw, cost, impr, clicks, format_only=None, format_ratio=None):
-    """Разбивает одну строку расхода (сырое название площадки + расход/показы/клики) на 1-2 строки
-    по формату: [(platform_key, cost, impr, clicks), ...]. Маркировка в самой строке — как в
-    split_platform(). Если в строке маркировки нет, но по площадке в целом формат уже определён
-    (format_only/format_ratio из compute_platform_formats()), строка всё равно уходит в
-    видео/баннеры — пропорционально, если известны оба формата — а не остаётся отдельной
-    немаркированной площадкой рядом с её же видео/баннерами."""
-    base = normalize_platform(raw)
-    if base in NO_FORMAT_SPLIT:
-        return [(base, cost, impr, clicks)]
-    fmt = platform_format(raw)
-    if fmt:
-        return [(f"{base}__{fmt}", cost, impr, clicks)]
-    if format_only and base in format_only:
-        return [(f"{base}__{format_only[base]}", cost, impr, clicks)]
-    if format_ratio and base in format_ratio:
-        return [(f"{base}__{f}", cost * w, impr * w, clicks * w) for f, w in format_ratio[base].items()]
-    return [(base, cost, impr, clicks)]
 
 
 if __name__ == "__main__":
