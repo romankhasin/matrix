@@ -403,17 +403,26 @@ def load_deals_tokenized(path, known_platforms):
     return {k: dict(v) for k, v in deals.items()}, {k: {kk: dict(vv) for kk, vv in v.items()} for k, v in fmts.items()}
 
 
-MC_SHEETS = {"встречи участия": "meet", "звонки 1й клик 90 дн": "call"}
-# «сделки 1й клик 90 дн» и «встречи 1й клик 90 дн» в этом файле смешивают модель атрибуции с тем,
-# что уже используется для сделок/встреч (участие) — те же соображения, что и раньше про
-# «не смешивать окна атрибуции», поэтому эти два листа не подключаются.
+MC_SHEETS = {
+    "встречи участия": "meet", "звонки 1й клик 90 дн": "call",
+    # «сделки 1й клик 90 дн» / «встречи 1й клик 90 дн» — та же модель, что у звонков («Первый
+    # клик, 90 дн»), не «Участие», как у основных сделок/встреч. Чтобы не смешивать окна
+    # атрибуции в одной цифре, это отдельные типы конверсии (deal_fc/meet_fc), не прибавляются
+    # к deal/meet — отдельная, явно подписанная колонка и чекбокс в интерфейсе.
+    "сделки 1й клик 90 дн": "deal_fc", "встречи 1й клик 90 дн": "meet_fc",
+}
+# ключи конверсий во всех rows дашборда: deal/meet — «Участие», call/deal_fc/meet_fc — «Первый
+# клик, 90 дн». Единый список, чтобы дефолтные нули и копирование между словарями не разъезжались.
+CONV_KEYS = ("deal", "meet", "call", "deal_fc", "meet_fc")
+ZERO_CONV = {k: 0 for k in CONV_KEYS}
 
 
 def load_deals_meetings_calls(path):
-    """4 листа «Кампания» + «Атрибутировано»: встречи (участие) и звонки (первый клик, 90 дн) —
-    те же модели, что и раньше. Возвращает month_key -> (block, platform) -> {"meet":n, "call":n}."""
+    """4 листа «Кампания» + «Атрибутировано» (MC_SHEETS). Возвращает
+    month_key -> (block, platform) -> {"meet":n, "call":n, "deal_fc":n, "meet_fc":n}."""
     wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
-    out = defaultdict(lambda: defaultdict(lambda: {"meet": 0, "call": 0}))
+    kinds = set(MC_SHEETS.values())
+    out = defaultdict(lambda: defaultdict(lambda: {k: 0 for k in kinds}))
     skipped = defaultdict(int)
     for sheet_name, kind in MC_SHEETS.items():
         if sheet_name not in wb.sheetnames:
@@ -442,7 +451,8 @@ def load_deals_meetings_calls(path):
             block, _ = campaign_block(campaign, None)
             key = f"{MONTH_SLUG[month]}{year}"
             out[key][(block, platform)][kind] += conv
-    print(f"[встречи/звонки] распознано {sum(v['meet']+v['call'] for m in out.values() for v in m.values())}, "
+    total = sum(sum(v.values()) for m in out.values() for v in m.values())
+    print(f"[встречи/звонки/1-й клик] распознано {total}, "
           f"без площадки {skipped['platform']}, без месяца {skipped['month']}, отброшено (2023/2024) {skipped['stale']}")
     return {k: dict(v) for k, v in out.items()}
 
@@ -484,19 +494,19 @@ def load_budget(path, skip_keys=(), deals_by_month=None, fmt_by_month=None, mc_b
         if key in skip_keys:
             continue
         rows_out = {(b, p): {"b": b, "p": p, "cost": round(v[0], 2), "impr": int(v[1]), "clicks": int(v[2]),
-                             "deal": 0, "meet": 0, "call": 0} for (b, p), v in acc.items()}
+                             **ZERO_CONV} for (b, p), v in acc.items()}
         for (b, p), deals in deals_by_month.get(key, {}).items():
             rp = route_conv_platform(rows_out, b, p)
-            rows_out.setdefault((b, rp), {"b": b, "p": rp, "cost": 0.0, "impr": 0, "clicks": 0, "deal": 0, "meet": 0, "call": 0})
+            rows_out.setdefault((b, rp), {"b": b, "p": rp, "cost": 0.0, "impr": 0, "clicks": 0, **ZERO_CONV})
             rows_out[(b, rp)]["deal"] += deals
         for (b, p), fmt in fmt_by_month.get(key, {}).items():
             if (b, p) in rows_out:
                 rows_out[(b, p)]["fmt"] = fmt
         for (b, p), mc in mc_by_month.get(key, {}).items():
             rp = route_conv_platform(rows_out, b, p)
-            rows_out.setdefault((b, rp), {"b": b, "p": rp, "cost": 0.0, "impr": 0, "clicks": 0, "deal": 0, "meet": 0, "call": 0})
-            rows_out[(b, rp)]["meet"] += mc.get("meet", 0)
-            rows_out[(b, rp)]["call"] += mc.get("call", 0)
+            rows_out.setdefault((b, rp), {"b": b, "p": rp, "cost": 0.0, "impr": 0, "clicks": 0, **ZERO_CONV})
+            for k, v in mc.items():
+                rows_out[(b, rp)][k] += v
         out[key] = {"year": year, "month": month, "rows": [rows_out[k] for k in sorted(rows_out)]}
     # месяцы со сделками, но без листа в бюджетном своде (сейчас — январь 2025): отдельная запись,
     # только сделки, без расхода/показов/кликов
@@ -508,12 +518,12 @@ def load_budget(path, skip_keys=(), deals_by_month=None, fmt_by_month=None, mc_b
         month_fmt = fmt_by_month.get(key, {})
         rows_out = {}
         for (b, p), d in deals_by_month.get(key, {}).items():
-            rows_out.setdefault((b, p), {"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, "deal": 0, "meet": 0, "call": 0})
+            rows_out.setdefault((b, p), {"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, **ZERO_CONV})
             rows_out[(b, p)]["deal"] += d
         for (b, p), mc in mc_by_month.get(key, {}).items():
-            rows_out.setdefault((b, p), {"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, "deal": 0, "meet": 0, "call": 0})
-            rows_out[(b, p)]["meet"] += mc.get("meet", 0)
-            rows_out[(b, p)]["call"] += mc.get("call", 0)
+            rows_out.setdefault((b, p), {"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, **ZERO_CONV})
+            for k, v in mc.items():
+                rows_out[(b, p)][k] += v
         for (b, p), fmt in month_fmt.items():
             if (b, p) in rows_out:
                 rows_out[(b, p)]["fmt"] = fmt
@@ -717,7 +727,7 @@ def main():
     report = []
     for key, label, src_month, slug in MONTHS:
         spend, unknown = load_spend(args.spend, label)
-        acc = defaultdict(lambda: {"cost": 0.0, "impr": 0.0, "clicks": 0.0, "deal": 0, "meet": 0, "call": 0})
+        acc = defaultdict(lambda: {"cost": 0.0, "impr": 0.0, "clicks": 0.0, **ZERO_CONV})
         for r in spend:
             a = acc[(r["block"], r["platform"])]
             a["cost"] += r["cost"]; a["impr"] += r["impr"]; a["clicks"] += r["clicks"]
@@ -728,10 +738,10 @@ def main():
             acc[(b, route_conv_platform(acc, b, p))]["deal"] += deals
         for (b, p), mc in mc_overrides.get(key, {}).items():
             a = acc[(b, route_conv_platform(acc, b, p))]
-            a["meet"] += mc.get("meet", 0)
-            a["call"] += mc.get("call", 0)
+            for k, v in mc.items():
+                a[k] += v
         rows = [{"b": b, "p": p, "cost": round(v["cost"], 2), "impr": int(v["impr"]), "clicks": int(v["clicks"]),
-                 "deal": v["deal"], "meet": v["meet"], "call": v["call"],
+                 **{k: v[k] for k in CONV_KEYS},
                  **({"fmt": fmt_tokenized[key][(b, p)]} if fmt_tokenized.get(key, {}).get((b, p)) else {})}
                 for (b, p), v in sorted(acc.items())]
         month_num = {"may": 5, "jun": 6, "jul": 7, "august": 8}[slug]
@@ -740,7 +750,7 @@ def main():
         is_full = have_convs or key in metrika_campaign_postb  # рейтинг строится, если есть Метрика (хоть откуда)
         payload["months"][key] = {"label": label.lower(), "year": 2026, "month": month_num, "full": is_full, "rows": rows,
                                   "post": post, "postb": postb_month}
-        tot = {k: sum(r[k] for r in rows) for k in ("cost", "deal", "meet", "call")}
+        tot = {k: sum(r[k] for r in rows) for k in ("cost",) + CONV_KEYS}
         report.append((label, tot, unknown))
 
     budget_report = []
@@ -763,7 +773,8 @@ def main():
 
     print("Итоги по месяцам (после фильтров):")
     for label, tot, unknown in report:
-        print(f"  {label}: расход {tot['cost']:,.0f}, сделки {tot['deal']}, встречи {tot['meet']}, звонки {tot['call']}"
+        print(f"  {label}: расход {tot['cost']:,.0f}, сделки {tot['deal']}, встречи {tot['meet']}, звонки {tot['call']}, "
+              f"сделки(1кл) {tot['deal_fc']}, встречи(1кл) {tot['meet_fc']}"
               + (f"  | проекты без блока в расходах: {sorted(unknown)}" if unknown else ""))
     for key, cost, impr, clicks in budget_report:
         print(f"  бюджет {key}: расход с НДС {cost:,.0f}, показы {impr:,}, клики {clicks:,}")
