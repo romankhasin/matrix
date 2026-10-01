@@ -226,13 +226,7 @@
     font-family:var(--font-mono); font-size:12px; padding:8px 12px; border-radius:10px;
     border:1px solid var(--line); background:var(--surface-2); color:var(--text); cursor:pointer;
   }
-  .trend-months{display:flex; gap:6px; flex-wrap:wrap;}
-  .trend-months button{
-    font-family:var(--font-mono); font-size:11px; padding:5px 10px; border-radius:8px;
-    border:1px solid var(--line); background:var(--surface); color:var(--text-faint); cursor:pointer;
-  }
-  .trend-months button:hover{border-color:var(--accent); color:var(--text);}
-  .trend-months button.active{background:var(--teal-dim); border-color:var(--teal); color:var(--text); font-weight:600;}
+  #trend-months{margin-bottom:16px;}
   .trend-empty{color:var(--text-faint); font-size:13px; padding:24px 0; text-align:center;}
   .trend-legend{display:flex; gap:20px; font-size:11px; color:var(--text-dim); margin-top:8px; padding-left:4px;}
   .trend-legend span{display:flex; align-items:center; gap:7px;}
@@ -1177,13 +1171,36 @@ function initTrendControls(){
   bsel.innerHTML = '<option value="all">Все блоки</option>' + DATA.blocks.map(b => `<option value="${b.key}">${b.label}</option>`).join('');
   bsel.addEventListener('change', () => { trendBlock = bsel.value; renderTrend(); });
 
+  renderTrendMonths();
+}
+
+function renderTrendMonths(){
+  // та же раскладка, что и в шапке: строка на каждый год, чекбоксы, «Весь <год>»
   const mbox = document.getElementById('trend-months');
-  mbox.innerHTML = MONTH_ORDER.map(k => `<button data-m="${k}" class="${trendMonths.has(k) ? 'active' : ''}">${trendMonthLabel(k)}</button>`).join('');
-  mbox.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+  mbox.innerHTML = YEARS.map(y => {
+    const ms = monthsOfYear(y);
+    const allSel = ms.every(k => trendMonths.has(k));
+    const chips = ms.map(k => chip(`data-m="${k}"`, trendMonths.has(k), monthName(k))).join('')
+      + chip(`data-all-year="${y}"`, allSel, `Весь ${y}`, 'all-btn');
+    return `<div class="month-year-row"><span class="month-year-label">${y}</span><div class="month-tabs">${chips}</div></div>`;
+  }).join('');
+  mbox.querySelectorAll('button[data-m]').forEach(btn => btn.addEventListener('click', () => {
     const k = btn.dataset.m;
     if (trendMonths.has(k)){ if (trendMonths.size > 1) trendMonths.delete(k); }
     else trendMonths.add(k);
-    btn.classList.toggle('active', trendMonths.has(k));
+    renderTrendMonths();
+    renderTrend();
+  }));
+  mbox.querySelectorAll('button[data-all-year]').forEach(btn => btn.addEventListener('click', () => {
+    const y = +btn.dataset.allYear;
+    const ms = monthsOfYear(y);
+    if (ms.every(k => trendMonths.has(k))){
+      const rest = [...trendMonths].filter(k => !ms.includes(k));
+      trendMonths = new Set(rest.length ? rest : [ms[ms.length - 1]]); // хотя бы один месяц должен остаться
+    } else {
+      ms.forEach(k => trendMonths.add(k));
+    }
+    renderTrendMonths();
     renderTrend();
   }));
 }
