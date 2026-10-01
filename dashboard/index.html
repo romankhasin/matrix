@@ -273,15 +273,29 @@
 
   .month-tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; align-items:stretch;}
   .month-tabs button{
+    position:relative;
     font-family:var(--font-mono); font-size:12px; line-height:1.3;
-    padding:9px 16px; min-height:46px; border-radius:12px; text-align:left;
+    padding:9px 16px 9px 34px; min-height:46px; border-radius:12px; text-align:left;
     border:1px solid var(--line); background:var(--surface); color:var(--text-dim);
     cursor:pointer; display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
   }
+  .month-tabs button::before{
+    content:''; position:absolute; left:11px; top:50%; transform:translateY(-50%);
+    width:16px; height:16px; border-radius:5px; border:1.5px solid var(--line);
+    background:var(--surface-2); box-sizing:border-box;
+  }
   .month-tabs button:hover{border-color:var(--accent); color:var(--text);}
-  .month-tabs button.active{background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:600;}
+  .month-tabs button:hover::before{border-color:var(--accent);}
+  .month-tabs button.active{background:var(--surface-2); border-color:var(--accent); color:var(--text); font-weight:600;}
+  .month-tabs button.active::before{background:var(--accent); border-color:var(--accent);}
+  .month-tabs button.active::after{
+    content:''; position:absolute; left:15.5px; top:calc(50% - 1px); width:4px; height:8px;
+    border:solid var(--bg); border-width:0 1.5px 1.5px 0; transform:translateY(-62%) rotate(45deg);
+  }
   .month-tabs button.all-btn{border-style:dashed;}
+  .month-tabs button.all-btn::before{border-style:dashed;}
   .month-tabs button.all-btn.active{border-style:solid;}
+  .month-tabs button.all-btn.active::before{border-style:solid;}
 
   .filters{display:grid; gap:14px; margin-bottom:20px;}
   .filter-group{display:grid; grid-template-columns:130px 1fr; gap:6px 14px; align-items:start;}
