@@ -297,6 +297,14 @@
   .month-tabs button.all-btn.active{border-style:solid;}
   .month-tabs button.all-btn.active::before{border-style:solid;}
 
+  .month-year-row{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+  .month-year-row:last-child{margin-bottom:0;}
+  .month-year-row .month-tabs{margin-bottom:0; flex:1;}
+  .month-year-label{
+    font-family:var(--font-mono); font-size:11.5px; font-weight:600; color:var(--text-faint);
+    flex:none; width:34px;
+  }
+
   .filters{display:grid; gap:14px; margin-bottom:20px;}
   .filter-group{display:grid; grid-template-columns:130px 1fr; gap:6px 14px; align-items:start;}
   @media (max-width:700px){ .filter-group{grid-template-columns:1fr;} }
@@ -451,7 +459,7 @@
         <li>Кнопки-пресеты — готовые сценарии расстановки весов.</li>
         <li>Блок ЖК — комфорт, комфорт+, бизнес, делюкс, коммерция, бренд. Блок определяется по токену в UTM-кампании (например, <span class="mono">sp_…</span> — Южнопортовая), у расходов — по колонке «Проект».</li>
         <li>Тип конверсии — сделки, встречи, звонки, любая комбинация или все сразу. CPA и рейтинг считаются по выбранным; суммы разных типов не дедуплицированы.</li>
-        <li>Год и месяц — год переключает, какая сетка месяцев видна, а не что выбрано: можно посмотреть, например, декабрь 2025 и январь 2026 вместе — переключитесь на 2025, отметьте декабрь, переключитесь на 2026, отметьте январь. У года, где что-то выбрано, но он сейчас не открыт, появляется подпись «выбрано: N». Для месяцев без данных Метрики рейтинг Score не строится: показывается бюджет (расход с НДС, показы, клики) и сделки.</li>
+        <li>Месяцы показаны отдельной строкой на каждый год — можно отмечать любые месяцы из разных лет сразу, без переключения (например, декабрь 2025 и январь 2026 вместе). Для месяцев без данных Метрики рейтинг Score не строится: показывается бюджет (расход с НДС, показы, клики) и сделки.</li>
         <li>Несколько месяцев суммируются. Постклик считается в два шага: внутри месяца метки UTM объединяются средневзвешенно по визитам, а при выборе нескольких месяцев значения отказов и времени на сайте усредняются с весом по рекламным кликам.</li>
         <li>Кнопка «⏱ Лаг клик → сделка» (в шапке) — сколько месяцев проходит от клика по рекламе до договора: среднее, медиана, распределение, а также разбивка по площадкам, группам и объектам. Месяц клика берётся из названия UTM-кампании (например, jan25), поэтому точность ±1 месяц; учтены только участия, где месяц и год распознаны (около 69%).</li>
         <li>График «Динамика CPA по площадке» — столбцы показывают сделки за месяц (левая шкала), линия — CPA в рублях (правая шкала, в млн или тыс.). При наведении на месяц видны сделки, расход и CPA. График работает по всем месяцам с данными и не зависит от фильтров выше.</li>
@@ -475,12 +483,8 @@
 
 <div class="filters">
   <div class="filter-group">
-    <div class="filter-label">Год</div>
-    <div class="month-tabs" id="year-tabs"></div>
-  </div>
-  <div class="filter-group">
     <div class="filter-label">Месяц</div>
-    <div class="month-tabs" id="month-tabs"></div>
+    <div id="month-tabs"></div>
   </div>
   <div class="filter-group">
     <div class="filter-label">Блок ЖК</div>
@@ -673,7 +677,6 @@ const BLOCK_INFO = {
 };
 
 const LAST_MONTH = MONTH_ORDER[MONTH_ORDER.length - 1];
-let selectedYear = DATA.months[LAST_MONTH].year;
 let selectedMonths = new Set([LAST_MONTH]);
 let selectedBlock = 'all';
 let selectedConv = new Set(['deal']);
@@ -750,22 +753,18 @@ function chip(attrs, active, html, cls='', disabled=false){
 }
 
 function renderFilters(){
-  const ybox = document.getElementById('year-tabs');
-  ybox.innerHTML = YEARS.map(y => {
-    const cnt = monthsOfYear(y).filter(k => selectedMonths.has(k)).length;
-    const sub = (y !== selectedYear && cnt > 0) ? `<span class="chip-sub">выбрано: ${cnt}</span>` : '';
-    return chip(`data-year="${y}"`, selectedYear === y, `${y}${sub}`, sub ? 'tall' : '');
-  }).join('');
-  ybox.querySelectorAll('button[data-year]').forEach(b => b.addEventListener('click', () => setYear(+b.dataset.year)));
-
-  const yearMonths = monthsOfYear(selectedYear);
-  const allMonths = yearMonths.every(k => selectedMonths.has(k));
+  // по строке на каждый год — все месяцы видны сразу, без переключения года
   const mbox = document.getElementById('month-tabs');
-  mbox.innerHTML = yearMonths.map(k => chip(`data-month="${k}"`, selectedMonths.has(k),
-      `${monthName(k)}${DATA.months[k].full ? '' : '<span class="chip-sub">только бюджет</span>'}`, DATA.months[k].full ? '' : 'tall')).join('')
-    + chip('data-all="1"', allMonths, `Весь ${selectedYear}`, 'all-btn');
+  mbox.innerHTML = YEARS.map(y => {
+    const yearMonths = monthsOfYear(y);
+    const allMonths = yearMonths.every(k => selectedMonths.has(k));
+    const chips = yearMonths.map(k => chip(`data-month="${k}"`, selectedMonths.has(k),
+        `${monthName(k)}${DATA.months[k].full ? '' : '<span class="chip-sub">только бюджет</span>'}`, DATA.months[k].full ? '' : 'tall')).join('')
+      + chip(`data-all-year="${y}"`, allMonths, `Весь ${y}`, 'all-btn');
+    return `<div class="month-year-row"><span class="month-year-label">${y}</span><div class="month-tabs">${chips}</div></div>`;
+  }).join('');
   mbox.querySelectorAll('button[data-month]').forEach(b => b.addEventListener('click', () => toggleMonth(b.dataset.month)));
-  mbox.querySelector('button[data-all]').addEventListener('click', toggleAllMonths);
+  mbox.querySelectorAll('button[data-all-year]').forEach(b => b.addEventListener('click', () => toggleAllMonths(+b.dataset.allYear)));
 
   const bbox = document.getElementById('block-tabs');
   bbox.innerHTML = chip('data-block="all"', selectedBlock === 'all', 'Все блоки', 'all-btn')
@@ -803,15 +802,6 @@ function applySelection(){
   render();
 }
 
-function setYear(y){
-  selectedYear = y;
-  const ms = monthsOfYear(y);
-  // переключение года — это просто навигация по сетке месяцев; уже выбранные месяцы
-  // (в том числе из других лет) не сбрасываются. Если в этом году ещё ничего не
-  // выбрано — для удобства сразу подставляем его последний месяц.
-  if (!ms.some(k => selectedMonths.has(k))) selectedMonths.add(ms[ms.length - 1]);
-  applySelection();
-}
 function toggleMonth(key){
   if (selectedMonths.has(key)){
     if (selectedMonths.size > 1) selectedMonths.delete(key); // хотя бы один месяц должен остаться выбран
@@ -820,8 +810,8 @@ function toggleMonth(key){
   }
   applySelection();
 }
-function toggleAllMonths(){
-  const ms = monthsOfYear(selectedYear);
+function toggleAllMonths(year){
+  const ms = monthsOfYear(year);
   if (ms.every(k => selectedMonths.has(k))){
     // снимаем месяцы этого года; месяцы из других лет остаются выбранными
     const rest = [...selectedMonths].filter(k => !ms.includes(k));
