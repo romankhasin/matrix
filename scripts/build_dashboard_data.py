@@ -34,7 +34,7 @@ from collections import defaultdict
 
 import openpyxl
 
-from normalize_platforms import ALIASES, NO_FORMAT_SPLIT, normalize_platform, split_platform
+from normalize_platforms import ALIASES, NO_FORMAT_SPLIT, compute_platform_formats, normalize_platform, split_row
 
 warnings.filterwarnings("ignore")
 
@@ -201,7 +201,7 @@ def load_conversions(path, header_first_row, offset, month_fixed=None):
 
 # ---------------------------------------------------------------- расходы
 
-def load_spend(path, sheet):
+def load_spend(path, sheet, format_only=None, format_ratio=None):
     ws = openpyxl.load_workbook(path, data_only=True)[sheet]
     rows = list(ws.iter_rows(min_row=1, values_only=True))
     header = [h.strip() if isinstance(h, str) else h for h in rows[0]]
@@ -221,8 +221,9 @@ def load_spend(path, sheet):
             cost = num(r[ci])
             if cost:
                 break
-        out.append({"platform": split_platform(r[idx["Площадка"]]), "block": block, "project": project,
-                    "cost": cost, "impr": num(r[idx["Показы"]]), "clicks": num(r[idx["Клики"]])})
+        for platform, c, i, cl in split_row(r[idx["Площадка"]], cost, num(r[idx["Показы"]]), num(r[idx["Клики"]]),
+                                             format_only, format_ratio):
+            out.append({"platform": platform, "block": block, "project": project, "cost": c, "impr": i, "clicks": cl})
     return out, unknown_projects
 
 
@@ -289,18 +290,42 @@ def platform_with_format(platform, fmt):
     return f"{platform}__{bucket}"
 
 
-def route_conv_platform(acc, block, platform):
+def route_conv_platform(acc, block, platform, format_only=None):
     """Куда отнести сделку/встречу/звонок для (block, platform): конверсии сами по себе не знают
     формат так же надёжно, как расход (формат площадки в бюджете указан только у ~20% строк) —
     поэтому не делим их независимо, а подселяем к уже существующему расходу. Если под этой
     площадкой в этом блоке уже есть расход video ИЛИ display — используем его (при наличии обоих
-    берём тот, где расход больше); иначе — обычная (неразбитая) площадка."""
+    берём тот, где расход больше); если расхода в этом блоке/месяце нет вовсе (например, конверсия
+    пришла за месяц без бюджетного листа), но у площадки в целом известен только один формат
+    (format_only, см. compute_platform_formats()) — используем его; иначе — обычная площадка."""
     candidates = [(fmt, acc.get((block, f"{platform}__{fmt}"))) for fmt in ("video", "display")]
     candidates = [(fmt, a) for fmt, a in candidates if a is not None and a.get("cost", 0) > 0]
-    if not candidates:
-        return platform
-    fmt, _ = max(candidates, key=lambda kv: kv[1]["cost"])
-    return f"{platform}__{fmt}"
+    if candidates:
+        fmt, _ = max(candidates, key=lambda kv: kv[1]["cost"])
+        return f"{platform}__{fmt}"
+    if format_only and platform in format_only:
+        return f"{platform}__{format_only[platform]}"
+    return platform
+
+
+def route_fmt_counts(rows_dict, block, platform, fmt_counts, format_only=None):
+    """Раскладывает разбивку сделок по формату кампании (fmt_counts: {'video':n,'banner':n,'tgb':n,
+    'branding':n,'?':n} из load_deals_tokenized()) по уже существующим в rows_dict video/display-
+    строкам той же площадки: 'video' — в __video, 'banner'/'tgb'/'branding' — в __display (см.
+    FORMAT_BUCKET), если такая строка там есть. Без разбиения по строкам (как раньше split_platform())
+    rows_dict хранил и 'video', и 'banner' в одной fmt-записи; теперь расход уже разошёлся по двум
+    строкам (route_conv_platform), и запись о формате сделок должна осесть там же, а не потеряться
+    из-за несовпадения ключей. Возвращает {platform_key: {sub_fmt: n}}."""
+    out = defaultdict(dict)
+    for sub, n in fmt_counts.items():
+        bucket = FORMAT_BUCKET.get(sub)
+        key = platform
+        if bucket and (block, f"{platform}__{bucket}") in rows_dict:
+            key = f"{platform}__{bucket}"
+        elif format_only and platform in format_only and (block, f"{platform}__{format_only[platform]}") in rows_dict:
+            key = f"{platform}__{format_only[platform]}"
+        out[key][sub] = out[key].get(sub, 0) + n
+    return dict(out)
 MONTH_TOKEN = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6, "june": 6,
                "jul": 7, "july": 7, "aug": 8, "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12}
 MONTH_TOKEN_RE = re.compile(r"^([a-z]+)(\d{2})$", re.I)
@@ -457,7 +482,8 @@ def load_deals_meetings_calls(path):
     return {k: dict(v) for k, v in out.items()}
 
 
-def load_budget(path, skip_keys=(), deals_by_month=None, fmt_by_month=None, mc_by_month=None):
+def load_budget(path, skip_keys=(), deals_by_month=None, fmt_by_month=None, mc_by_month=None,
+                 format_only=None, format_ratio=None):
     """Бюджетный свод («Бюджеты свод 25-26»): листы «<Месяц> <год>», столбцы D/E/G = Расход/показы/клики.
     Листы с другой раскладкой (недельные рабочие) пропускаются. Расход умножается на 1,2 (с НДС)."""
     deals_by_month = deals_by_month or {}
@@ -485,31 +511,36 @@ def load_budget(path, skip_keys=(), deals_by_month=None, fmt_by_month=None, mc_b
             if block is None:
                 unknown.add(str(r[0]).strip())
                 block = "none"
-            a = acc[(block, split_platform(str(r[2]).strip()))]
-            a[0] += to_num(r[3]) * VAT
-            a[1] += to_num(r[4])
-            a[2] += to_num(r[6])
+            for platform, c, i, cl in split_row(str(r[2]).strip(), to_num(r[3]) * VAT, to_num(r[4]), to_num(r[6]),
+                                                 format_only, format_ratio):
+                a = acc[(block, platform)]
+                a[0] += c
+                a[1] += i
+                a[2] += cl
         key = f"{MONTH_SLUG[month]}{year}"
         seen_keys.add(key)
         if key in skip_keys:
             continue
-        rows_out = {(b, p): {"b": b, "p": p, "cost": round(v[0], 2), "impr": int(v[1]), "clicks": int(v[2]),
+        rows_out = {(b, p): {"b": b, "p": p, "cost": round(v[0], 2), "impr": round(v[1]), "clicks": round(v[2]),
                              **ZERO_CONV} for (b, p), v in acc.items()}
         for (b, p), deals in deals_by_month.get(key, {}).items():
-            rp = route_conv_platform(rows_out, b, p)
+            rp = route_conv_platform(rows_out, b, p, format_only)
             rows_out.setdefault((b, rp), {"b": b, "p": rp, "cost": 0.0, "impr": 0, "clicks": 0, **ZERO_CONV})
             rows_out[(b, rp)]["deal"] += deals
         for (b, p), fmt in fmt_by_month.get(key, {}).items():
-            if (b, p) in rows_out:
-                rows_out[(b, p)]["fmt"] = fmt
+            for pk, counts in route_fmt_counts(rows_out, b, p, fmt, format_only).items():
+                if (b, pk) in rows_out:
+                    rows_out[(b, pk)]["fmt"] = counts
         for (b, p), mc in mc_by_month.get(key, {}).items():
-            rp = route_conv_platform(rows_out, b, p)
+            rp = route_conv_platform(rows_out, b, p, format_only)
             rows_out.setdefault((b, rp), {"b": b, "p": rp, "cost": 0.0, "impr": 0, "clicks": 0, **ZERO_CONV})
             for k, v in mc.items():
                 rows_out[(b, rp)][k] += v
         out[key] = {"year": year, "month": month, "rows": [rows_out[k] for k in sorted(rows_out)]}
     # месяцы со сделками, но без листа в бюджетном своде (сейчас — январь 2025): отдельная запись,
-    # только сделки, без расхода/показов/кликов
+    # только сделки, без расхода/показов/кликов. Расхода тут нет вообще (rows_out начинается пустым),
+    # поэтому route_conv_platform сразу падает на format_only — локальных video/display-строк для
+    # сравнения по расходу нет и быть не может.
     for key in set(deals_by_month) | set(mc_by_month):
         if key in seen_keys or key in skip_keys:
             continue
@@ -518,15 +549,18 @@ def load_budget(path, skip_keys=(), deals_by_month=None, fmt_by_month=None, mc_b
         month_fmt = fmt_by_month.get(key, {})
         rows_out = {}
         for (b, p), d in deals_by_month.get(key, {}).items():
-            rows_out.setdefault((b, p), {"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, **ZERO_CONV})
-            rows_out[(b, p)]["deal"] += d
+            rp = route_conv_platform(rows_out, b, p, format_only)
+            rows_out.setdefault((b, rp), {"b": b, "p": rp, "cost": 0.0, "impr": 0, "clicks": 0, **ZERO_CONV})
+            rows_out[(b, rp)]["deal"] += d
         for (b, p), mc in mc_by_month.get(key, {}).items():
-            rows_out.setdefault((b, p), {"b": b, "p": p, "cost": 0.0, "impr": 0, "clicks": 0, **ZERO_CONV})
+            rp = route_conv_platform(rows_out, b, p, format_only)
+            rows_out.setdefault((b, rp), {"b": b, "p": rp, "cost": 0.0, "impr": 0, "clicks": 0, **ZERO_CONV})
             for k, v in mc.items():
-                rows_out[(b, p)][k] += v
+                rows_out[(b, rp)][k] += v
         for (b, p), fmt in month_fmt.items():
-            if (b, p) in rows_out:
-                rows_out[(b, p)]["fmt"] = fmt
+            for pk, counts in route_fmt_counts(rows_out, b, p, fmt, format_only).items():
+                if (b, pk) in rows_out:
+                    rows_out[(b, pk)]["fmt"] = counts
         out[key] = {"year": int(m.group(2)), "month": month, "rows": [rows_out[k] for k in sorted(rows_out)]}
     return out, unknown
 
@@ -647,6 +681,46 @@ def load_metrika_campaign(paths, known_platforms):
     return dict(post), dict(postb)
 
 
+def scan_formats(spend_path, budget_path):
+    """Лёгкий первый проход по сырым названиям площадок во всех источниках расхода — только
+    «Площадка» + расход, без блока/показов/кликов — чтобы отдать compute_platform_formats()
+    полную картину по площадке сразу по всем месяцам: иначе, скажем, у Qbid с 3 немаркированными
+    строками в мае и 1 промаркированной «Qbid video» в июле, при обработке мая мы ещё не знаем,
+    что у площадки вообще бывает видео-формат."""
+    weighted = []
+    wb = openpyxl.load_workbook(spend_path, data_only=True)
+    for _, label, _, _ in MONTHS:
+        ws = wb[label]
+        rows = list(ws.iter_rows(min_row=1, values_only=True))
+        header = [h.strip() if isinstance(h, str) else h for h in rows[0]]
+        idx = {n: header.index(n) for n in header if n}
+        cost_cols = [idx[c] for c in COST_CANDIDATES if c in idx]
+        for r in rows[1:]:
+            if not r or not r[idx["Площадка"]] or r[idx["Площадка"]] == "ИТОГО":
+                continue
+            cost = 0.0
+            for ci in cost_cols:
+                cost = num(r[ci])
+                if cost:
+                    break
+            weighted.append((r[idx["Площадка"]], cost))
+    if budget_path:
+        wb2 = openpyxl.load_workbook(budget_path, data_only=True, read_only=True)
+        for ws in wb2.worksheets:
+            parts = ws.title.strip().lower().split()
+            if len(parts) != 2 or parts[0] not in RU_MONTHS or not parts[1].isdigit():
+                continue
+            rows = list(ws.iter_rows(values_only=True))
+            h = [str(x).strip().lower() if x else "" for x in rows[0]]
+            if not (h[3] == "расход" and h[4] == "показы" and h[6] == "клики"):
+                continue
+            for r in rows[1:]:
+                if r[0] is None or not str(r[0]).strip() or not r[2]:
+                    continue
+                weighted.append((str(r[2]).strip(), to_num(r[3]) * VAT))
+    return compute_platform_formats(weighted)
+
+
 def inject(html_path, payload):
     s = open(html_path, encoding="utf-8").read()
     a, b = "/*DATA:START*/", "/*DATA:END*/"
@@ -671,6 +745,11 @@ def main():
     ap.add_argument("--inject", nargs="*", default=[])
     args = ap.parse_args()
 
+    # формат (видео/баннеры) по площадке в целом — см. scan_formats()/compute_platform_formats():
+    # нужен ДО первого load_spend/load_budget, чтобы немаркированные строки площадки с уже известным
+    # форматом сразу уходили в видео/баннеры, а не оседали отдельной немаркированной строкой
+    format_only, format_ratio = scan_formats(args.spend, args.budget)
+
     convs = []
     if args.conv_mayjul:
         convs += load_conversions(args.conv_mayjul, 9, 1)
@@ -693,10 +772,10 @@ def main():
         if known_platforms is None:
             known_platforms = set(ALIASES.values())
             for _, label, _, _ in MONTHS:
-                spend_rows, _ = load_spend(args.spend, label)
+                spend_rows, _ = load_spend(args.spend, label, format_only, format_ratio)
                 known_platforms.update(r["platform"] for r in spend_rows)
             if args.budget:
-                harvest, _ = load_budget(args.budget, skip_keys=set())
+                harvest, _ = load_budget(args.budget, skip_keys=set(), format_only=format_only, format_ratio=format_ratio)
                 for m in harvest.values():
                     known_platforms.update(r["p"] for r in m["rows"])
             # плюс базовые (без __video/__display) варианты — чтобы конверсии без формата в
@@ -726,7 +805,7 @@ def main():
     payload = {"blocks": [{"key": k, "label": l} for k, l in BLOCKS], "months": {}}
     report = []
     for key, label, src_month, slug in MONTHS:
-        spend, unknown = load_spend(args.spend, label)
+        spend, unknown = load_spend(args.spend, label, format_only, format_ratio)
         acc = defaultdict(lambda: {"cost": 0.0, "impr": 0.0, "clicks": 0.0, **ZERO_CONV})
         for r in spend:
             a = acc[(r["block"], r["platform"])]
@@ -735,14 +814,18 @@ def main():
             if c["month"] == src_month:
                 acc[(c["block"], c["platform"])][c["kind"]] += c["conv"]
         for (b, p), deals in deal_overrides.get(key, {}).items():
-            acc[(b, route_conv_platform(acc, b, p))]["deal"] += deals
+            acc[(b, route_conv_platform(acc, b, p, format_only))]["deal"] += deals
         for (b, p), mc in mc_overrides.get(key, {}).items():
-            a = acc[(b, route_conv_platform(acc, b, p))]
+            a = acc[(b, route_conv_platform(acc, b, p, format_only))]
             for k, v in mc.items():
                 a[k] += v
+        for (b, p), fmt in fmt_tokenized.get(key, {}).items():
+            for pk, counts in route_fmt_counts(acc, b, p, fmt, format_only).items():
+                if (b, pk) in acc:
+                    acc[(b, pk)]["fmt"] = counts
         rows = [{"b": b, "p": p, "cost": round(v["cost"], 2), "impr": int(v["impr"]), "clicks": int(v["clicks"]),
                  **{k: v[k] for k in CONV_KEYS},
-                 **({"fmt": fmt_tokenized[key][(b, p)]} if fmt_tokenized.get(key, {}).get((b, p)) else {})}
+                 **({"fmt": v["fmt"]} if "fmt" in v else {})}
                 for (b, p), v in sorted(acc.items())]
         month_num = {"may": 5, "jun": 6, "jul": 7, "august": 8}[slug]
         post = metrika_campaign_post.get(key) or (load_metrika(f"{args.metrika_dir}/{METRIKA_FILE[slug]}") if args.metrika_dir else {})
@@ -755,7 +838,7 @@ def main():
 
     budget_report = []
     if args.budget:
-        budget, unknown_projects = load_budget(args.budget, skip_keys=set(payload["months"]), deals_by_month=deal_overrides, fmt_by_month=fmt_tokenized, mc_by_month=mc_overrides)
+        budget, unknown_projects = load_budget(args.budget, skip_keys=set(payload["months"]), deals_by_month=deal_overrides, fmt_by_month=fmt_tokenized, mc_by_month=mc_overrides, format_only=format_only, format_ratio=format_ratio)
         for key, m in sorted(budget.items(), key=lambda kv: (kv[1]["year"], kv[1]["month"])):
             name = next(n for n, i in RU_MONTHS.items() if i == m["month"])
             has_metrika = key in metrika_campaign_postb
