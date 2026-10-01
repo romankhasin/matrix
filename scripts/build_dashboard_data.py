@@ -40,7 +40,6 @@ warnings.filterwarnings("ignore")
 
 BLOCKS = [
     ("comfort", "Комфорт"),
-    ("comfortplus", "Комфорт+"),
     ("business", "Бизнес"),
     ("deluxe", "Делюкс"),
     ("commerce", "Коммерция"),
@@ -57,8 +56,8 @@ TOKEN_BLOCK = {
     "gvl": "comfort", "lmech-rspb": "comfort", "lmech": "comfort", "ng": "comfort",
     "sel": "comfort", "sp": "comfort",
     "ln": "comfort", "ls": "comfort", "ls3": "comfort",  # Нагатинская, Стрешнево
-    # комфорт+
-    "zv": "comfortplus", "lm": "comfortplus",
+    # комфорт+ (объединено с «Комфорт» в единый блок)
+    "zv": "comfort", "lm": "comfort",
     # делюкс
     "sav": "deluxe", "sav17": "deluxe", "sav27": "deluxe",
     # коммерция (Воронцовская, Нижегородская W, Свободы)
@@ -70,7 +69,7 @@ TOKEN_BLOCK = {
 
 # название ЖК из «ЖК <название> | ...» в кампании — запасной путь, если токен не распознан
 NAME_BLOCK = {
-    "причальный": "business", "мичуринский": "comfortplus", "волга-нн": "business",
+    "причальный": "business", "мичуринский": "comfort", "волга-нн": "business",
     "саввинская 17": "deluxe", "саввинская 27": "deluxe",
     "стрешнево": "comfort", "нагатинская": "comfort",
 }
@@ -84,7 +83,7 @@ PROJECT_ALIAS = {
 
 # колонка «Проект» в файле расходов -> блок
 PROJECT_BLOCK = {
-    "мичуринский": "comfortplus", "звенигородская": "comfortplus",
+    "мичуринский": "comfort", "звенигородская": "comfort",
     "южнопортовая": "comfort", "лесной": "comfort", "мечникова": "comfort",
     "нижегородская": "comfort", "селигерская": "comfort",
     "нагатинская": "comfort", "стрешнево": "comfort",
