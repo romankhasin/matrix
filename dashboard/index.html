@@ -516,7 +516,7 @@
         <li>Ползунки весов — расставляете приоритеты (например, «CPA важнее всего»), рейтинг пересчитывается мгновенно на тех же реальных данных, без перезагрузки.</li>
         <li>Кнопки-пресеты — готовые сценарии расстановки весов.</li>
         <li>Блок ЖК — комфорт, комфорт+, бизнес, делюкс, коммерция, бренд. Блок определяется по токену в UTM-кампании (например, <span class="mono">sp_…</span> — Южнопортовая), у расходов — по колонке «Проект».</li>
-        <li>Тип конверсии — сделки, встречи, звонки, любая комбинация или все сразу (сделки + встречи + звонки). CPA и рейтинг считаются по выбранным; суммы разных типов не дедуплицированы. «Сделки (1-й клик)» и «Встречи (1-й клик)» — те же события, но по модели атрибуции «Первый клик, 90 дн», а не «Участие»; это отдельные типы, в «Все сразу» не входят и считаются, только если отметить их вручную — вместе с основными сделками/встречами они бы задвоили часть договоров.</li>
+        <li>Тип конверсии — сделки, встречи, звонки, любая комбинация или все сразу (все пять типов). CPA и рейтинг считаются по выбранным; суммы разных типов не дедуплицированы. «Сделки (1-й клик)» и «Встречи (1-й клик)» — те же события, но по модели атрибуции «Первый клик, 90 дн», а не «Участие»; вместе с основными сделками/встречами они задваивают часть договоров, поэтому при выборе нескольких типов под фильтром показано предупреждение — это осознанный выбор, итог не дедуплицирован.</li>
         <li>Месяцы показаны отдельной строкой на каждый год — можно отмечать любые месяцы из разных лет сразу, без переключения (например, декабрь 2025 и январь 2026 вместе). Для месяцев без данных Метрики рейтинг Score не строится: показывается бюджет (расход с НДС, показы, клики) и сделки.</li>
         <li>Несколько месяцев суммируются. Постклик считается в два шага: внутри месяца метки UTM объединяются средневзвешенно по визитам, а при выборе нескольких месяцев значения отказов и времени на сайте усредняются с весом по рекламным кликам.</li>
         <li>Кнопка «⏱ Лаг клик → сделка» (в шапке) — сколько месяцев проходит от клика по рекламе до договора: среднее, медиана, распределение, а также разбивка по площадкам, группам и объектам. Месяц клика берётся из названия UTM-кампании (например, jan25), поэтому точность ±1 месяц; учтены только участия, где месяц и год распознаны (около 69%).</li>
@@ -759,8 +759,10 @@ const CONV = [
   { k:'deal_fc', label:'Сделки (1-й клик)',  model:'Первый клик, 90 дн' },
   { k:'meet_fc', label:'Встречи (1-й клик)', model:'Первый клик, 90 дн' },
 ];
-// «Все сразу» — те же три типа, что и раньше (сделки/встречи/звонки); deal_fc/meet_fc в эту
-// кнопку не входят и включаются только вручную, отдельным чекбоксом
+// «Все сразу» в основном фильтре отмечает все пять типов (включая 1-й клик) — суммы разных
+// моделей атрибуции не дедуплицированы, это осознанный выбор, предупреждение показывается под фильтром
+const CONV_EVERY_KEYS = CONV.map(c => c.k);
+// три основных типа — для графиков динамики/накопленного CPA
 const CONV_ALL_KEYS = ['deal', 'meet', 'call'];
 const BLOCK_INFO = {
   all:"Все проекты, коммерция и бренд вместе",
@@ -885,9 +887,9 @@ function renderFilters(){
   document.getElementById('block-hint').textContent = BLOCK_INFO[selectedBlock];
 
   const cbox = document.getElementById('conv-tabs');
-  const allConv = selectedConv.size === CONV_ALL_KEYS.length && CONV_ALL_KEYS.every(k => selectedConv.has(k));
+  const allConv = selectedConv.size === CONV_EVERY_KEYS.length && CONV_EVERY_KEYS.every(k => selectedConv.has(k));
   cbox.innerHTML = CONV.map(c => chip(`data-conv="${c.k}"`, selectedConv.has(c.k), `${c.label}<span class="chip-sub">${c.model}</span>`, 'tall', budgetMode)).join('')
-    + chip('data-allconv="1"', allConv, 'Все сразу<span class="chip-sub">сделки + встречи + звонки</span>', 'all-btn tall', budgetMode);
+    + chip('data-allconv="1"', allConv, 'Все сразу<span class="chip-sub">все пять типов</span>', 'all-btn tall', budgetMode);
   cbox.querySelectorAll('button[data-conv]').forEach(b => b.addEventListener('click', () => toggleConv(b.dataset.conv)));
   cbox.querySelector('button[data-allconv]').addEventListener('click', toggleAllConv);
   const convHint = document.getElementById('conv-hint');
@@ -943,8 +945,8 @@ function toggleConv(key){
   applySelection();
 }
 function toggleAllConv(){
-  const isAll = selectedConv.size === CONV_ALL_KEYS.length && CONV_ALL_KEYS.every(k => selectedConv.has(k));
-  selectedConv = isAll ? new Set(['deal']) : new Set(CONV_ALL_KEYS);
+  const isAll = selectedConv.size === CONV_EVERY_KEYS.length && CONV_EVERY_KEYS.every(k => selectedConv.has(k));
+  selectedConv = isAll ? new Set(['deal']) : new Set(CONV_EVERY_KEYS);
   applySelection();
 }
 const convWord = () => selectedConv.size === 1 ? CONV.find(c => selectedConv.has(c.k)).label.toLowerCase() : 'конверсий';
@@ -1299,7 +1301,7 @@ function trendPlatformOptions(){
 const { platforms: TREND_PLATFORMS, defaultPlatform: TREND_DEFAULT_PLATFORM } = trendPlatformOptions();
 let trendPlatform = TREND_DEFAULT_PLATFORM;
 let trendBlock = 'all';
-// типы конверсий для обоих графиков ниже — те же три, что и «Все сразу» в фильтре наверху
+// типы конверсий для обоих графиков ниже — три основных (CONV_ALL_KEYS)
 // (сделки/встречи — «Участие», звонки — «Первый клик, 90 дн»). Можно отметить несколько сразу —
 // тогда складываются, хотя это разные модели атрибуции (как и «Все сразу» в основном фильтре)
 const TREND_CONV_WORD = { deal: 'Сделки', meet: 'Встречи', call: 'Звонки' };
