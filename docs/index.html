@@ -520,7 +520,7 @@
         <li>Месяцы показаны отдельной строкой на каждый год — можно отмечать любые месяцы из разных лет сразу, без переключения (например, декабрь 2025 и январь 2026 вместе). Для месяцев без данных Метрики рейтинг Score не строится: показывается бюджет (расход с НДС, показы, клики) и сделки.</li>
         <li>Несколько месяцев суммируются. Постклик считается в два шага: внутри месяца метки UTM объединяются средневзвешенно по визитам, а при выборе нескольких месяцев значения отказов и времени на сайте усредняются с весом по рекламным кликам.</li>
         <li>Кнопка «⏱ Лаг клик → сделка» (в шапке) — сколько месяцев проходит от клика по рекламе до договора: среднее, медиана, распределение, а также разбивка по площадкам, группам и объектам. Месяц клика берётся из названия UTM-кампании (например, jan25), поэтому точность ±1 месяц; учтены только участия, где месяц и год распознаны (около 69%).</li>
-        <li>График «Динамика CPA по площадке» — столбцы показывают выбранный тип конверсии за месяц (левая шкала), линия — CPA в рублях (правая шкала, в млн или тыс.). Тип конверсии (сделки / встречи / звонки) выбирается отдельным переключателем — модели атрибуции разные, поэтому график строится по одному типу за раз, без смешивания. При наведении на месяц видны конверсии, расход и CPA. График работает по всем месяцам с данными и не зависит от фильтров выше.</li>
+        <li>График «Динамика CPA по площадке» — столбцы показывают выбранный тип конверсии за месяц (левая шкала), линия — CPA в рублях (правая шкала, в млн или тыс.). Типы конверсии (сделки / встречи / звонки) отмечаются галочками, можно несколько сразу или «Все сразу» — тогда они складываются, хотя модели атрибуции у них разные (сделки/встречи — «Участие», звонки — «Первый клик»), поэтому это не дедуплицированный итог. При наведении на месяц видны конверсии, расход и CPA. График работает по всем месяцам с данными и не зависит от фильтров выше.</li>
         <li>Кнопка ✕ рядом с названием площадки в таблице — скрывает её из ранкера: площадка перестаёт участвовать в рейтинге, в пересчёте Score (нормализация CPA/CPM больше не оглядывается на неё) и в боковых списках, как будто её нет в данных. Список скрытых — в панели «Скрытые площадки» слева, вернуть можно в один клик. Хранится в этом браузере, на общие данные не влияет.</li>
       </ul>
 
@@ -683,8 +683,9 @@
         <div class="trend-controls">
           <select class="trend-select" id="trend-platform"></select>
           <select class="trend-select" id="trend-block"></select>
-          <select class="trend-select" id="trend-conv"></select>
         </div>
+        <div class="month-tabs compact" id="trend-conv" style="margin-bottom:6px"></div>
+        <div class="filter-hint warn" id="trend-conv-hint" style="grid-column:auto; margin-bottom:12px"></div>
         <div class="trend-months" id="trend-months"></div>
         <div id="trend-chart"></div>
         <div class="trend-empty" id="trend-empty" style="display:none">Нет расхода и конверсий у этой площадки за выбранные месяцы.</div>
@@ -1298,11 +1299,17 @@ function trendPlatformOptions(){
 const { platforms: TREND_PLATFORMS, defaultPlatform: TREND_DEFAULT_PLATFORM } = trendPlatformOptions();
 let trendPlatform = TREND_DEFAULT_PLATFORM;
 let trendBlock = 'all';
-// тип конверсии для обоих графиков ниже — те же три типа, что и «Все сразу» в фильтре наверху
-// (сделки/встречи — «Участие», звонки — «Первый клик, 90 дн»); не смешиваются, выбирается один
+// типы конверсий для обоих графиков ниже — те же три, что и «Все сразу» в фильтре наверху
+// (сделки/встречи — «Участие», звонки — «Первый клик, 90 дн»). Можно отметить несколько сразу —
+// тогда складываются, хотя это разные модели атрибуции (как и «Все сразу» в основном фильтре)
 const TREND_CONV_WORD = { deal: 'Сделки', meet: 'Встречи', call: 'Звонки' };
 const TREND_CONV_MODEL = { deal: 'Участие', meet: 'Участие', call: 'Первый клик, 90 дн' };
-let trendConv = 'deal';
+let trendConvs = new Set(['deal']);
+const trendConvKeys = () => CONV_ALL_KEYS.filter(k => trendConvs.has(k));
+const trendConvWord = () => {
+  const ks = trendConvKeys();
+  return ks.length === CONV_ALL_KEYS.length ? 'Все конверсии' : ks.map(k => TREND_CONV_WORD[k]).join(' + ');
+};
 // по умолчанию — последние 6 месяцев с данными, дальше выбор произвольный
 let trendMonths = new Set(MONTH_ORDER.slice(-6));
 
@@ -1317,11 +1324,29 @@ function initTrendControls(){
   bsel.innerHTML = '<option value="all">Все блоки</option>' + DATA.blocks.map(b => `<option value="${b.key}">${b.label}</option>`).join('');
   bsel.addEventListener('change', () => { trendBlock = bsel.value; renderBoth(); });
 
-  const csel = document.getElementById('trend-conv');
-  csel.innerHTML = CONV_ALL_KEYS.map(k => `<option value="${k}" ${k === trendConv ? 'selected' : ''}>${TREND_CONV_WORD[k]} · ${TREND_CONV_MODEL[k]}</option>`).join('');
-  csel.addEventListener('change', () => { trendConv = csel.value; renderBoth(); });
-
+  renderTrendConv();
   renderTrendMonths();
+}
+
+function renderTrendConv(){
+  const box = document.getElementById('trend-conv');
+  const all = trendConvs.size === CONV_ALL_KEYS.length;
+  box.innerHTML = CONV_ALL_KEYS.map(k => chip(`data-tc="${k}"`, trendConvs.has(k),
+      `${TREND_CONV_WORD[k]}<span class="chip-sub">${TREND_CONV_MODEL[k]}</span>`, 'tall')).join('')
+    + chip('data-tc-all="1"', all, 'Все сразу<span class="chip-sub">сумма трёх типов</span>', 'all-btn tall');
+  box.querySelectorAll('button[data-tc]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.tc;
+    if (trendConvs.has(k)){ if (trendConvs.size > 1) trendConvs.delete(k); } // хотя бы один тип должен остаться
+    else trendConvs.add(k);
+    renderTrendConv(); renderBoth();
+  }));
+  box.querySelector('button[data-tc-all]').addEventListener('click', () => {
+    trendConvs = all ? new Set(['deal']) : new Set(CONV_ALL_KEYS);
+    renderTrendConv(); renderBoth();
+  });
+  document.getElementById('trend-conv-hint').textContent = trendConvs.size > 1
+    ? 'Складываются разные типы и модели атрибуции — это не дедуплицированный итог: один клиент может дать и звонок, и встречу, и сделку.'
+    : '';
 }
 
 function renderTrendMonths(){
@@ -1362,7 +1387,7 @@ function trendSeries(){
     m.rows.forEach(r => {
       if (r.p !== trendPlatform) return;
       if (trendBlock !== 'all' && r.b !== trendBlock) return;
-      cost += r.cost; conv += r[trendConv] || 0;
+      cost += r.cost; conv += trendConvKeys().reduce((t, k) => t + (r[k] || 0), 0);
     });
     return { key: k, label: trendMonthLabel(k), cost, conv, cpa: (cost > 0 && conv > 0) ? cost / conv : null };
   });
@@ -1405,7 +1430,7 @@ function renderTrend(){
     return;
   }
   empty.style.display = 'none';
-  const convWordLow = TREND_CONV_WORD[trendConv].toLowerCase();
+  const convWordLow = trendConvWord().toLowerCase();
 
   // рисуем в реальных пикселях контейнера — шрифты не масштабируются вместе с шириной
   const W = Math.max(320, box.clientWidth || 720), H = 260;
@@ -1470,7 +1495,7 @@ function renderTrend(){
     </svg>
     <div class="trend-tip" id="trend-tip"></div>
     <div class="trend-legend">
-      <span><span class="sw" style="background:#8fa8cc; opacity:.7;"></span>${TREND_CONV_WORD[trendConv]} за месяц (левая шкала)</span>
+      <span><span class="sw" style="background:#8fa8cc; opacity:.7;"></span>${trendConvWord()} за месяц (левая шкала)</span>
       <span><span class="sw" style="background:var(--teal); border-radius:50%;"></span>CPA, ₽ (правая шкала)</span>
     </div>`;
 
@@ -1478,7 +1503,7 @@ function renderTrend(){
   box.querySelectorAll('.trend-col').forEach(g => {
     g.addEventListener('mousemove', e => {
       const s = series[+g.dataset.i];
-      tip.innerHTML = `<b>${s.label}</b><br><span class="mut">${TREND_CONV_WORD[trendConv]}:</span> ${fmt(s.conv)}<br><span class="mut">Расход:</span> ${fmt(s.cost)} ₽<br><span class="mut">CPA:</span> ${s.cpa != null ? fmt(s.cpa) + ' ₽' : '—'}`;
+      tip.innerHTML = `<b>${s.label}</b><br><span class="mut">${trendConvWord()}:</span> ${fmt(s.conv)}<br><span class="mut">Расход:</span> ${fmt(s.cost)} ₽<br><span class="mut">CPA:</span> ${s.cpa != null ? fmt(s.cpa) + ' ₽' : '—'}`;
       const r = box.getBoundingClientRect();
       tip.style.display = 'block';
       tip.style.left = Math.min(e.clientX - r.left + 14, W - tip.offsetWidth - 4) + 'px';
@@ -1573,7 +1598,7 @@ function renderCumulative(){
   box.querySelectorAll('.trend-col').forEach(g => {
     g.addEventListener('mousemove', e => {
       const s = series[+g.dataset.i];
-      tip.innerHTML = `<b>по ${s.label}</b><br><span class="mut">${TREND_CONV_WORD[trendConv]} накоплено:</span> ${fmt(s.cumConv)}<br><span class="mut">Расход накоплен:</span> ${fmt(s.cumCost)} ₽<br><span class="mut">CPA накопленный:</span> ${s.cpa != null ? fmt(s.cpa) + ' ₽' : '—'}`;
+      tip.innerHTML = `<b>по ${s.label}</b><br><span class="mut">${trendConvWord()} накоплено:</span> ${fmt(s.cumConv)}<br><span class="mut">Расход накоплен:</span> ${fmt(s.cumCost)} ₽<br><span class="mut">CPA накопленный:</span> ${s.cpa != null ? fmt(s.cpa) + ' ₽' : '—'}`;
       const r = box.getBoundingClientRect();
       tip.style.display = 'block';
       tip.style.left = Math.min(e.clientX - r.left + 14, W - tip.offsetWidth - 4) + 'px';
