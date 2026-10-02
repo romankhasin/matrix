@@ -124,16 +124,6 @@
   }
   .subweights .weight-row{margin-bottom:12px;}
   .subweights .weight-row:last-child{margin-bottom:0;}
-  /* панель весов типов конверсии лежит внутри .filter-group (колонки 130px + 1fr): без явного
-     grid-column она попадала в узкую левую колонку и раздувала страницу вниз */
-  .conv-weights{
-    grid-column:2; margin-top:4px;
-    grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:4px 18px;
-  }
-  .conv-weights:not([style*="display:none"]){display:grid;}
-  .conv-weights > .filter-hint{grid-column:1 / -1; margin-bottom:6px !important;}
-  .conv-weights .weight-row{margin-bottom:0 !important;}
-  @media (max-width:700px){ .conv-weights{grid-column:1;} }
   .subweights .weight-label .name{font-size:12px; color:var(--text-dim);}
 
   .weights-sum{
@@ -562,29 +552,6 @@
     <div class="filter-label">Конверсия</div>
     <div class="month-tabs" id="conv-tabs"></div>
     <div class="filter-hint" id="conv-hint"></div>
-    <div class="subweights conv-weights" id="conv-weights" style="display:none">
-      <div class="filter-hint" style="margin-bottom:10px">Вклад в CPA/Score при нескольких типах сразу — сделка важнее встречи, встреча важнее звонка. На колонки Сделки/Встречи/Звонки не влияет.</div>
-      <div class="weight-row">
-        <div class="weight-label"><span class="name">Сделки</span><span class="val mono" id="val-cw-deal">100%</span></div>
-        <input type="range" id="cw-deal" min="0" max="100" value="100">
-      </div>
-      <div class="weight-row">
-        <div class="weight-label"><span class="name">Встречи</span><span class="val mono" id="val-cw-meet">40%</span></div>
-        <input type="range" id="cw-meet" min="0" max="100" value="40">
-      </div>
-      <div class="weight-row">
-        <div class="weight-label"><span class="name">Звонки</span><span class="val mono" id="val-cw-call">15%</span></div>
-        <input type="range" id="cw-call" min="0" max="100" value="15">
-      </div>
-      <div class="weight-row">
-        <div class="weight-label"><span class="name">Сделки (1-й клик)</span><span class="val mono" id="val-cw-deal_fc">100%</span></div>
-        <input type="range" id="cw-deal_fc" min="0" max="100" value="100">
-      </div>
-      <div class="weight-row">
-        <div class="weight-label"><span class="name">Встречи (1-й клик)</span><span class="val mono" id="val-cw-meet_fc">40%</span></div>
-        <input type="range" id="cw-meet_fc" min="0" max="100" value="40">
-      </div>
-    </div>
   </div>
 </div>
 
@@ -791,11 +758,6 @@ const LAST_MONTH = [...MONTH_ORDER].reverse().find(hasConvs) || MONTH_ORDER[MONT
 let selectedMonths = new Set([LAST_MONTH]);
 let selectedBlock = 'all';
 let selectedConv = new Set(['deal']);
-// вклад типа конверсии в CPA/Score при выборе нескольких типов сразу (% от сделки) —
-// сделка важнее встречи, встреча важнее звонка; на «сырые» колонки Сделки/Встречи/Звонки не влияет.
-// deal_fc/meet_fc — те же сделки/встречи, только по модели «Первый клик» — вес по умолчанию
-// как у их «участие»-аналогов (deal_fc = deal, meet_fc = meet)
-let convWeights = { deal: 100, meet: 40, call: 15, deal_fc: 100, meet_fc: 40 };
 let PLATFORMS = [], SPEND_ONLY = [], NO_POST = [], CONV_ONLY = [];
 
 // площадки, скрытые из ранкера вручную — не участвуют ни в рейтинге, ни в боковых списках,
@@ -841,12 +803,6 @@ function aggregate(){
   const ranked = [], spendOnly = [], noPost = [], convOnly = [];
   Object.values(acc).forEach(a => {
     a.conversions = [...selectedConv].reduce((s, k) => s + a[k], 0);
-    // CPA/Score считаются по взвешенной сумме конверсий (сделка важнее встречи важнее звонка —
-    // веса ниже под фильтром «Конверсия»), только когда выбрано больше одного типа. «Конверсии»
-    // в таблице остаются «сырой» суммой — честные цифры, без весов.
-    a.cpaConv = selectedConv.size > 1
-      ? [...selectedConv].reduce((s, k) => s + a[k] * (convWeights[k] / 100), 0)
-      : a.conversions;
     a.bounce = a.pcWeight ? a.bW / a.pcWeight : NaN;
     a.timeOnSite = a.pcWeight ? a.tW / a.pcWeight : NaN;
     if (a.cost > 0 && a.conversions > 0){
@@ -910,9 +866,8 @@ function renderFilters(){
   convHint.textContent = budgetMode
     ? 'Для этих месяцев нет данных Метрики (постклик), поэтому рейтинг Score не строится — показан только бюджет и сделки.'
     : selectedConv.size > 1
-      ? `✓ Выбрано типов: ${selectedConv.size} — они суммируются в CPA и рейтинге с учётом весов ниже. К сведению: у типов разные модели атрибуции, итог не дедуплицирован (один клиент может дать и звонок, и встречу, и сделку).`
+      ? `✓ Выбрано типов: ${selectedConv.size} — они суммируются в CPA и рейтинге. К сведению: у типов разные модели атрибуции, итог не дедуплицирован (один клиент может дать и звонок, и встречу, и сделку).`
       : 'CPA и рейтинг считаются по выбранной конверсии. Можно отметить несколько типов.';
-  document.getElementById('conv-weights').style.display = (!budgetMode && selectedConv.size > 1) ? '' : 'none';
 
   document.getElementById('weights-panel').classList.toggle('dim', budgetMode);
   document.getElementById('excluded-panel').style.display = budgetMode ? 'none' : '';
@@ -968,7 +923,7 @@ function derive(rows){
   return rows.map(r => ({
     ...r,
     cpm: r.cost / r.impr * 1000,
-    cpa: r.cpaConv > 0 ? r.cost / r.cpaConv : Infinity,
+    cpa: r.conversions > 0 ? r.cost / r.conversions : Infinity,
   }));
 }
 
@@ -1280,22 +1235,6 @@ function applyPreset(presetName){
 document.querySelectorAll('#weights-panel input[type=range]:not([disabled])').forEach(el => el.addEventListener('input', render));
 document.querySelectorAll('.presets button').forEach(btn => {
   btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
-});
-
-// веса типов конверсий меняют a.cpaConv внутри aggregate(), поэтому пересчитываем агрегацию целиком,
-// а не только render() — но без полного applySelection(), чтобы не перерисовывать сами ползунки
-function applyConvWeights(){
-  const agg = aggregate();
-  PLATFORMS = agg.ranked; SPEND_ONLY = agg.spendOnly; NO_POST = agg.noPost; CONV_ONLY = agg.convOnly;
-  render();
-}
-['deal', 'meet', 'call', 'deal_fc', 'meet_fc'].forEach(k => {
-  const el = document.getElementById('cw-' + k);
-  el.addEventListener('input', () => {
-    convWeights[k] = +el.value;
-    document.getElementById('val-cw-' + k).textContent = el.value + '%';
-    applyConvWeights();
-  });
 });
 
 // ---- динамика CPA по площадке: независимая мини-панель, месяцы выбираются отдельно от основных фильтров ----
