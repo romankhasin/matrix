@@ -774,7 +774,10 @@ const BLOCK_INFO = {
   none:"Токен ЖК не найден в кампании или проект не входит в список",
 };
 
-const LAST_MONTH = MONTH_ORDER[MONTH_ORDER.length - 1];
+// по умолчанию — последний месяц, в котором уже есть хоть какие-то конверсии: в самом свежем
+// (август 2026) их ещё нет, и таблица при открытии была бы пустой, сколько типов ни отмечай
+const hasConvs = k => DATA.months[k].rows.some(r => r.deal + r.meet + r.call + (r.deal_fc || 0) + (r.meet_fc || 0) > 0);
+const LAST_MONTH = [...MONTH_ORDER].reverse().find(hasConvs) || MONTH_ORDER[MONTH_ORDER.length - 1];
 let selectedMonths = new Set([LAST_MONTH]);
 let selectedBlock = 'all';
 let selectedConv = new Set(['deal']);
@@ -893,11 +896,11 @@ function renderFilters(){
   cbox.querySelectorAll('button[data-conv]').forEach(b => b.addEventListener('click', () => toggleConv(b.dataset.conv)));
   cbox.querySelector('button[data-allconv]').addEventListener('click', toggleAllConv);
   const convHint = document.getElementById('conv-hint');
-  convHint.classList.toggle('warn', budgetMode || selectedConv.size > 1);
+  convHint.classList.toggle('warn', budgetMode); // при мультивыборе — обычная справка, не предупреждение-блокировка
   convHint.textContent = budgetMode
     ? 'Для этих месяцев нет данных Метрики (постклик), поэтому рейтинг Score не строится — показан только бюджет и сделки.'
     : selectedConv.size > 1
-      ? 'Складываются разные типы и модели атрибуции с учётом весов ниже — это не дедуплицированный итог: один клиент может дать и звонок, и встречу, и сделку.'
+      ? `✓ Выбрано типов: ${selectedConv.size} — они суммируются в CPA и рейтинге с учётом весов ниже. К сведению: у типов разные модели атрибуции, итог не дедуплицирован (один клиент может дать и звонок, и встречу, и сделку).`
       : 'CPA и рейтинг считаются по выбранной конверсии. Можно отметить несколько типов.';
   document.getElementById('conv-weights').style.display = (!budgetMode && selectedConv.size > 1) ? '' : 'none';
 
